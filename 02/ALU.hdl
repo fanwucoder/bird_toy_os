@@ -43,19 +43,36 @@ CHIP ALU {
 
     PARTS:
    // Put you code here:
-   Not(in=x, out=notx);
-   Not(in=y, out=noty);
-   Mux4Way16(a=x, b=notx, c=false, d=true, sel[1]=zx,sel[0]=nx out=out1);
-   Mux4Way16(a=y, b=noty, c=false, d=true, sel[1]=zy,sel[0]=ny out=out2);
+   // x取反
+   Not16(in=x, out=notx);
+   // y 取反
+   Not16(in=y, out=noty);
+    /**
+     * zx nx
+        0 0 x
+        0 1 !x
+        1 0 0
+        1 1 1
+    */ 
+   Mux4Way16(a=x, b=notx, c=false, d=true, sel[1]=zx,sel[0]=nx, out=out1);
+   
+   Mux4Way16(a=y, b=noty, c=false, d=true, sel[1]=zy,sel[0]=ny ,out=out2);
+   /* add
+   */
    Add16(a=out1, b=out2, out=add1);
+    //    and
    And16(a=out1, b=out2, out=and1);
-   Mux16(a=and1, b=add1, sel=sel, out[0..14]=outa,out[15]=flag);
-   And16(a[0..14]=outa,a[15]=flag, b=true, out=ng1);
-   Not16(in[0..14]=outa,in[15]=flag out=zr1);
-   Or8Way(in=zr1[0..7], out=zra);
-   Or8Way(in=zr1[8..15],out=zrb);
-   Or(a=zra, b=zrb, out=notzr);
-   Not(in=notzr, out=zr);
-   Or(a=flag, b=true, out=ng);
-   Or16(a[0..14]=outa,a[15]=flag b=true, out=out);
+   // f=0 and1 else add1
+   Mux16(a=and1, b=add1, sel=f, out=outa);
+   Not16(in=outa, out=notout);
+   
+   Mux16( a=outa,b=notout, sel=no, out[0..14]=outx, out[15]=flag);
+
+   Or16(a[0..14]=outx,a[15]=flag, b=false, out=out);
+     // 判读是否输出0
+
+   Or16Way(in[0..14]=outx,in[15]=flag,out=zr1);
+   Nand(a=zr1, b=true, out=zr);
+    // 判断符号位
+   And(a=flag, b=true, out=ng);
 }
