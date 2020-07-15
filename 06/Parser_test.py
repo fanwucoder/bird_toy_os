@@ -30,38 +30,6 @@ class TestParser(unittest.TestCase):
         parser.advance()
 
     def test_commandType(self):
-        # test_commnad = ["A", "-D", "-A", "D", "D+1", "U5", "U4", "A+1", "U6", "U1", "A-D", "U3", "U2", "D-1", "D|A",
-        #                 "M+1",
-        #                 "M-D", "M", "D|M", "U8", "!A", "D-A", "M+D", "!D", "!M", "D-M", "M-1", "1", "0", "-1", "-M",
-        #                 "D+A", "A-1", "D&M", "D&A", "U7"]
-        # buf = StringIO()
-        # buf.write(u"@123\n")
-        # buf.write(u"//\n")
-        # cnt = 0
-        # for i in itertools.combinations("AMD", 2):
-        #     for x in test_commnad:
-        #         dest = "".join(i)
-        #         buf.write(unicode(dest + "=" + x + "\n"))
-        #         cnt += 1
-        # buf.write(u"//")
-        # for k in ['JLT', 'JLE', 'JEQ', 'JNE', 'JGT', 'JGE']:
-        #     buf.write(unicode("D;{0}\n".format(k)))
-        # buf.write(u'0;JMP')
-        # buf.write(u"//")
-        #
-        # buf.write(U"(TEST_LABEL)")
-        # buf.seek(0)
-        # parser = Parser(buf)
-        # parser.advance()
-        # self.assertEqual(parser.commandType(), Parser.A_COMMAND)
-        # for i in range(cnt):
-        #     parser.advance()
-        #     self.assertEqual(parser.commandType(), Parser.C_COMMAND)
-        # for i in range(7):
-        #     parser.advance()
-        #     self.assertEqual(parser.commandType(), Parser.C_COMMAND)
-        # parser.advance()
-        # self.assertEqual(parser.commandType(), Parser.L_COMMAND)
         buf = StringIO()
         buf.write(u"@123\n")
         buf.write(u"//\n")
