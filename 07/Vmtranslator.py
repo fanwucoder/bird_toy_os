@@ -1,5 +1,10 @@
 # coding=utf-8
 from io import IOBase
+import sys
+if sys.version_info.major==3:
+    unicode=str
+    from io import TextIOWrapper
+    file=TextIOWrapper
 
 
 class Parser(object):
@@ -83,7 +88,7 @@ class Parser(object):
 class CodeWriter(object):
     def __init__(self, out_file):
         self.out_file = out_file
-        self.outwrite = open(out_file, "wb+")
+        self.outwrite = open(out_file, "w+")
         self.is_close = False
         self._label = 0
 
@@ -98,6 +103,7 @@ class CodeWriter(object):
         # [SP]=D
         asm_command = """
          @SP
+         M=M-1
          A=M
          D=M
         """
@@ -106,6 +112,8 @@ class CodeWriter(object):
         @SP
         A=M
         M=D
+        @SP
+        M=M+1        
         """
         if command == "neg":
             asm_command += """
@@ -125,9 +133,9 @@ class CodeWriter(object):
         # A=[SP]
         asm_command += """
         @SP
-        A=A-1
+        M=M-1
         A=M
-         
+        A=M
         """
         if command == "add":
             asm_command += """                                 
@@ -172,30 +180,29 @@ class CodeWriter(object):
 
     def writePushPop(self, commond, segment, index):
         asm_command = ""
-        if commond == Parser.C_PUSH:
-            asm_command = """
+        if commond == Parser.C_POP:
+            asm_command += """
             @SP
-            M=M+1
+            A=M
+            M=M-1
+            D=A
             """
         if segment == "constant":
             asm_command += """
                 @{index}
                 D=A
             """.format(index=index)
+
         if commond == Parser.C_PUSH:
             asm_command += """
             @SP
             A=M
             M=D
+            @SP
+            M=M+1
             """
             self._writeArithmetic(asm_command)
-        if commond == Parser.C_POP:
-            asm_command += """
-            @SP
-            A=M
-            A=A-1
-            D=A
-            """
+
 
     def close(self):
         self.outwrite.close()
@@ -207,7 +214,7 @@ class CodeWriter(object):
         return label
 
     def _writeArithmetic(self, asm_command):
-        self.outwrite.writelines(asm_command)
+        self.outwrite.write(asm_command)
 
 
 def translate(param):

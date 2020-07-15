@@ -1,14 +1,10 @@
 
-            @SP
-            M=M+1
-            
                 @7
                 D=A
             
             @SP
             A=M
             M=D
-            
             @SP
             M=M+1
             
@@ -18,19 +14,24 @@
             @SP
             A=M
             M=D
+            @SP
+            M=M+1
             
          @SP
+         M=M-1
          A=M
          D=M
         
         @SP
-        A=A-1
+        M=M-1
         A=M
-         
+        A=M
                                          
                     D=A+D
             
         @SP
         A=M
         M=D
+        @SP
+        M=M+1        
         
