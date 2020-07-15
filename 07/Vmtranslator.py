@@ -1,10 +1,12 @@
 # coding=utf-8
 from io import IOBase
 import sys
-if sys.version_info.major==3:
-    unicode=str
+
+if sys.version_info.major == 3:
+    unicode = str
     from io import TextIOWrapper
-    file=TextIOWrapper
+
+    file = TextIOWrapper
 
 
 class Parser(object):
@@ -88,9 +90,12 @@ class Parser(object):
 class CodeWriter(object):
     def __init__(self, out_file):
         self.out_file = out_file
+        self.filename = self.out_file.split("/")[-1][:-4]
+        self.filename = self.filename.split("\\")[-1]
         self.outwrite = open(out_file, "w+")
         self.is_close = False
         self._label = 0
+        self._static_label = 0
 
     def setFileName(self, filename):
         self.out_file = filename
@@ -180,20 +185,32 @@ class CodeWriter(object):
 
     def writePushPop(self, commond, segment, index):
         asm_command = ""
-        if commond == Parser.C_POP:
-            asm_command += """
-            @SP
-            A=M
-            M=M-1
-            D=A
-            """
-        if segment == "constant":
-            asm_command += """
-                @{index}
-                D=A
-            """.format(index=index)
-
+        seg_map = {"argument": "ARG", "local": "LCL", "this": "THIS", "that": "THAT", "pointer": "3", "temp": "5"}
         if commond == Parser.C_PUSH:
+            if segment == "constant":
+                asm_command += """
+                    @{index}
+                    D=A
+                """.format(index=index)
+            else:
+                tmp = ""
+                if segment in seg_map:
+                    tmp = """
+                    @{index}
+                    D=A
+                    @{seg}
+                    A=M+D
+                    D=M
+                    """.format(index=index, seg=seg_map[segment])
+                if segment in ["pointer", "temp"]:
+                    tmp = tmp.replace("A=M+D", "A=A+D")
+                if segment == "static":
+                    label = self._get_static_label(index)
+                    tmp = """
+                    @{label}
+                    D=M
+                    """.format(label=label)
+                asm_command += tmp
             asm_command += """
             @SP
             A=M
@@ -203,6 +220,41 @@ class CodeWriter(object):
             """
             self._writeArithmetic(asm_command)
 
+            return
+        # todo R13被用来保存入栈内存地址，直接使用的，并没有做保存和恢复
+        if commond == Parser.C_POP:
+            tmp = ""
+            if segment in seg_map:
+                tmp = """
+                @{index}
+                D=A
+                @{seg}
+                D=M+D
+                @R13
+                M=D
+                """.format(index=index, seg=seg_map[segment])
+            if segment in ["pointer", "temp"]:
+                tmp = tmp.replace("D=M+D", "D=A+D")
+            if segment == "static":
+                label = self._get_static_label(index)
+                # 直接将xxx.j的地址保存到R13当中,让所有的pop和push命令统一，可能会造成代码过长
+                tmp = """
+                       @{label}
+                       D=A
+                       @R13
+                       M=D
+                """.format(label=label)
+            asm_command += tmp
+            asm_command += """
+            @SP
+            M=M-1
+            A=M
+            D=M
+            @R13
+            A=M
+            M=D
+            """
+            self._writeArithmetic(asm_command)
 
     def close(self):
         self.outwrite.close()
@@ -214,7 +266,15 @@ class CodeWriter(object):
         return label
 
     def _writeArithmetic(self, asm_command):
-        self.outwrite.write(asm_command)
+        lines = [x.strip() + "\n" for x in asm_command.split("\n") if x.strip()]
+        self.outwrite.writelines(lines)
+
+    def _get_static_label(self, index):
+        label = "%s.%s" % (self.filename, index)
+        return label
+
+    def write_source_comment(self, command):
+        self.outwrite.write("//%s\n" % command)
 
 
 def translate(param):
@@ -224,9 +284,11 @@ def translate(param):
     while parser.hasMoreCommands():
         parser.advance()
         ct = parser.commandType()
+        writer.write_source_comment(parser.command)
         if ct == Parser.C_ARITHMETIC:
             writer.writeArithmetic(parser.arg1())
         elif ct == Parser.C_PUSH:
+
             writer.writePushPop(Parser.C_PUSH, parser.arg1(), parser.arg2())
         elif ct == Parser.C_POP:
             writer.writePushPop(Parser.C_POP, parser.arg1(), parser.arg2())
