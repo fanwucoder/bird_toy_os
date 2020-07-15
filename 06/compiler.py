@@ -1,32 +1,105 @@
+# coding=utf-8
+from io import IOBase
+import re
+
+
 class Parser(object):
-    def __init__(self, file, input=None):
-        self._file = file
-        self._input = input
+    L_COMMAND = "L_COMMAND"
+    C_COMMAND = "C_COMMAND"
+    A_COMMAND = "A_COMMAND"
+
+    def __init__(self, filename=None):
+
+        self._file = filename
+        self._buf = None
+        self._advance = None  # type: str
+        self._next_line = 0
+        self.line = 0
+        self.command = None  # type: str
         self._init_()
 
     def _init_(self):
-        pass
+        if isinstance(self._file, str) or isinstance(self._file, unicode):
+            self._buf = open(self._file, 'r')
+        elif isinstance(self._file, file) or isinstance(self._file, IOBase):
+            self._buf = self._file
+        else:
+            raise ValueError("file object show file or readable")
 
     def hasMoreCommands(self):
-        pass
+
+        if self._advance:
+            return True
+        while True:
+            # 跳过注释
+            line = self._buf.readline()
+            self._next_line += 1
+            if line and line.startswith("//"):
+                continue
+            if line:
+                self._advance = line
+                return True
+            else:
+                return False
 
     def advance(self):
-        pass
+        if self.hasMoreCommands():
+            self.line = self._next_line
+            self.command = self._advance
+            self._advance = None
+        else:
+            raise ValueError("has no command.*")
 
     def commandType(self):
-        pass
+        """
+        简单的判断类型，此处不做正确性检查
+        :return:
+        """
+        if self.command.startswith("@"):
+            return self.A_COMMAND
+        if "(" in self.command:
+            return self.L_COMMAND
+        if "=" in self.command:
+            return self.C_COMMAND
+        if ";" in self.command:
+            return self.C_COMMAND
 
     def symbol(self):
-        pass
+        if re.match("\([a-zA-Z_\\.\\$\\:][a-zA-Z_\\.\\$\\:0-9]+\)", self.command):
+            return self.command.replace("(", "").replace(")", "")
+        else:
+            raise ValueError("Syntax error:%s,%s" % (self.line, self.command))
 
     def dest(self):
-        pass
+
+        if "=" in self.command:
+            dest = self.command.split('=')[0]
+            if re.match("^[AMD]{1,3}$", dest):
+                return dest
+        raise ValueError("Syntax error:%s,%s" % (self.line, self.command))
 
     def comp(self):
-        pass
+        test_commnad = ["A", "-D", "-A", "D", "D+1", "U5", "U4", "A+1", "U6", "U1", "A-D", "U3", "U2", "D-1", "D|A",
+                        "M+1",
+                        "M-D", "M", "D|M", "U8", "!A", "D-A", "M+D", "!D", "!M", "D-M", "M-1", "1", "0", "-1", "-M",
+                        "D+A", "A-1", "D&M", "D&A", "U7", ""]
+        comp = None
+        if ";" in self.command:
+            comp = self.command.split(';')[0]
+        if "=" in self.command:
+            comp = self.command.split("=")[1]
+        if comp in test_commnad:
+            return comp
+        raise ValueError("Syntax error:%s,%s" % (self.line, self.command))
 
     def jmp(self):
-        pass
+        jmp = None
+        if ";" in self.command:
+            jmp = self.command.split(';')[1]
+        test_jmp = ["", 'JLT', 'JLE', 'JEQ', 'JNE', 'JGT', 'JGE', "JMP"]
+        if jmp in test_jmp:
+            return jmp
+        raise ValueError("Syntax error:%s,%s" % (self.line, self.command))
 
 
 class Code(object):
