@@ -11,12 +11,14 @@ class TestParser(unittest.TestCase):
         pass
 
     def test_hasMoreCommands(self):
-        buf = StringIO()
+        buf = StringIO(u"  \n")
         parser = Parser(buf)
         self.assertFalse(parser.hasMoreCommands())
         buf = StringIO(u"//注释行\n@123")
         parser = Parser(buf)
         self.assertTrue(parser.hasMoreCommands())
+        parser = Parser("test.asm")
+        self.assertFalse(parser.hasMoreCommands())
 
     def test_advance(self):
         buf = StringIO()
@@ -83,6 +85,14 @@ class TestParser(unittest.TestCase):
         parser = Parser(buf)
         parser.advance()
         self.assertEqual(parser.symbol(), "LABEL")
+        buf = StringIO(u"@LABEL")
+        parser = Parser(buf)
+        parser.advance()
+        self.assertEqual(parser.symbol(), "LABEL")
+        buf = StringIO(u"@2")
+        parser = Parser(buf)
+        parser.advance()
+        self.assertEqual(parser.symbol(), "2")
 
     def test_dest(self):
         buf = StringIO()
