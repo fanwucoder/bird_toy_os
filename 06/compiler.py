@@ -253,4 +253,6 @@ def compile_asm(file_name):
 
 
 if __name__ == '__main__':
-    compile_asm("rect/Rect.asm")
+    import sys
+
+    compile_asm(sys.argv[1])
