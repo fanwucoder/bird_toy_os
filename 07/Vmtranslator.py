@@ -10,6 +10,9 @@ if sys.version_info.major == 3:
 
 
 class Parser(object):
+    C_IF = "C_IF"
+    C_GOTO = "C_GOTO"
+    C_LABEL = "C_LABEL"
     C_POP = "C_POP"
     C_PUSH = "C_PUSH"
     C_ARITHMETIC = "C_ARITHMETIC"
@@ -68,10 +71,22 @@ class Parser(object):
         archmetic = ['add', 'sub', 'neg', 'eq', 'gt', 'lt', 'and', 'or', 'not']
         if self.command in archmetic:
             return Parser.C_ARITHMETIC
-        if "push" in self.command:
+        elif self.command.startswith("push "):
             return Parser.C_PUSH
-        if "pop" in self.command:
+        elif self.command.startswith("pop "):
             return Parser.C_POP
+        elif self.command.startswith("function "):
+            return Parser.C_FUNCTION
+        elif self.command.startswith("label "):
+            return Parser.C_LABEL
+        elif self.command.startswith("goto "):
+            return Parser.C_GOTO
+        elif self.command.startswith("if-goto "):
+            return Parser.C_IF
+        elif self.command.startswith("call "):
+            return Parser.C_CALL
+        else:
+            raise ValueError("unknow command %s" % self.command)
 
     def arg1(self):
         if self.commandType() == self.C_RETURN:
@@ -96,6 +111,27 @@ class CodeWriter(object):
         self.is_close = False
         self._label = 0
         self._static_label = 0
+
+    def write_init(self):
+        pass
+
+    def write_label(self):
+        pass
+
+    def write_goto(self):
+        pass
+
+    def write_if(self):
+        pass
+
+    def write_call(self):
+        pass
+
+    def write_return(self):
+        pass
+
+    def write_function(self):
+        pass
 
     def setFileName(self, filename):
         self.out_file = filename
