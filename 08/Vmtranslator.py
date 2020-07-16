@@ -118,15 +118,14 @@ class CodeWriter(object):
         self.filename = self.filename.split("\\")[-1]
         self.outwrite = open(out_file, "w+")
         self.is_close = False
-        self._curr_func = None
+        self._curr_func = ""
         self._label = 0
         self._static_label = 0
+        self.line_num = 0
 
     def setFileName(self, filename):
-        self.out_file = filename
-        if not self.is_close:
-            raise Exception("%s  opened!" % self.out_file)
-        self.outwrite = open(self.out_file, "w+")
+        self.filename = filename.split("/")[-1][:-4]
+        self.filename = self.filename.split("\\")[-1]
 
     def write_init(self):
         # SP=256
@@ -194,12 +193,17 @@ class CodeWriter(object):
 
     def write_call(self, functionName, numArgs):
         return_addr = self._get_label()
+        self.write_source_comment("push return address")
         self.writePushPop(Parser.C_PUSH, "constant", return_addr)
+        self.write_source_comment("push LCL")
         self._push_ram(1)
+        self.write_source_comment("push ARG")
         self._push_ram(2)
+        self.write_source_comment("push THIS")
         self._push_ram(3)
+        self.write_source_comment("push THAT")
         self._push_ram(4)
-        # ARG=SP-n-5
+        self.write_source_comment("ARG=SP-n-5")
         self._write_asm("""
         @SP
         D=M
@@ -210,7 +214,7 @@ class CodeWriter(object):
         @ARG
         M=D
         """.format(numArgs=numArgs))
-        # LCL=SP
+        self.write_source_comment("LCL=SP")
         self._write_asm("""
         @SP
         D=M
@@ -243,28 +247,41 @@ class CodeWriter(object):
         A=M
         M=D
         //SP=ARG+1
-        D=D+1
+        @ARG
+        D=M+1
         @SP
         M=D
         //THAT=*(FRAME-1)
         @R13
-        D=M-1
+        M=M-1
+        A=M
+        D=M
         @THAT
         M=D
         //THIS=*(FRAME-2)
-        D=D-1
+        @R13
+        M=M-1
+        A=M
+        D=M
         @THIS
         M=D
         //ARG=*(FRAME-3)
-        D=D-1
+        @R13
+        M=M-1
+        A=M
+        D=M
         @ARG
         M=D
         //LCL=*(FRAME-4)
-        D=D-1
+        @R13
+        M=M-1
+        A=M
+        D=M
         @LCL
         M=D
         //GOTO RET
         @R14
+        A=M
         0;JMP
         """)
 
@@ -438,7 +455,15 @@ class CodeWriter(object):
         return label
 
     def _write_asm(self, asm_command):
-        lines = [x.strip() + "\n" for x in asm_command.split("\n") if x.strip()]
+        lines = []
+        for x in asm_command.split("\n"):
+            x = x.strip()
+            if x:
+                if x.startswith("(") or x.startswith("//"):
+                    lines.append(x + "\n")
+                else:
+                    lines.append("{} //{}\n".format(x, self.line_num))
+                    self.line_num += 1
         self.outwrite.writelines(lines)
 
     def _get_static_label(self, index):
@@ -455,19 +480,20 @@ class CodeWriter(object):
 
 def translate(param):
     if os.path.isdir(param):
+        out_file = param.split("/")[-1].split("\\")[-1].replace(".vm", "") + ".asm"
         files = [os.path.join(param, x) for x in os.listdir(param) if x.endswith(".vm")]
+        out_file = os.path.join(param, out_file)
     else:
         files = [param]
-    writer = None
+        out_file = param[:-3] + ".asm"
+
+    writer = CodeWriter(out_file)
+    writer.write_init()
     for f in files:
         parser = Parser(f)
         out_file = f[:-3] + ".asm"
-        if writer is None:
-            writer = CodeWriter(out_file)
-            writer.write_init()
-        else:
-            writer.close()
-            writer.setFileName(out_file)
+        writer.setFileName(out_file)
+        print(out_file)
         while parser.hasMoreCommands():
             parser.advance()
             ct = parser.commandType()
@@ -487,7 +513,7 @@ def translate(param):
             elif ct == Parser.C_CALL:
                 writer.write_call(parser.arg1(), int(parser.arg2()))
             elif ct == Parser.C_FUNCTION:
-                writer.write_function(parser.arg1(),int( parser.arg2()))
+                writer.write_function(parser.arg1(), int(parser.arg2()))
             elif ct == Parser.C_RETURN:
                 writer.write_return()
     writer.close()
