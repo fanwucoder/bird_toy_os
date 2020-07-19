@@ -1,0 +1,25 @@
+<class>
+  <identifier>Main</identifier>
+  <symbol>{</symbol>
+  <classVarDec>
+    <key_word>static</key_word>
+    <key_word>boolean</key_word>
+    <identifier>test</identifier>
+    <symbol>;</symbol>
+  </classVarDec>
+  <class/>
+  <subroutineDec>
+    <key_word>function</key_word>
+    <key_word>void</key_word>
+    <identifier>main</identifier>
+    <symbol>(</symbol>
+    <parameterList>
+      <symbol>(</symbol>
+    </parameterList>
+    <symbol>)</symbol>
+    <subroutineBody>
+      <symbol>{</symbol>
+      <statements/>
+    </subroutineBody>
+  </subroutineDec>
+</class>
