@@ -39,14 +39,14 @@ class TestJackTokenizer(TestCase):
     def test_token_type(self):
         tokenizer = JackTokenizer("ArrayTest/Main.jack")
         tokenizer.advance()
-        self.assertEqual(TokenType.KEY_WORD, tokenizer.token_type())
+        self.assertEqual(TokenType.keyWord, tokenizer.token_type())
         self.assertEqual(tokenizer.keyword(), KeywordType.CLASS)
         tokenizer.advance()
-        self.assertEqual(TokenType.IDENTIFIER, tokenizer.token_type())
+        self.assertEqual(TokenType.identifier, tokenizer.token_type())
         self.assertEqual(tokenizer.identifier(), "Main")
 
         tokenizer.advance()
-        self.assertEqual(TokenType.SYMBOL, tokenizer.token_type())
+        self.assertEqual(TokenType.symbol, tokenizer.token_type())
         self.assertEqual(tokenizer.symbol(), "{")
 
         i = 0
@@ -54,8 +54,8 @@ class TestJackTokenizer(TestCase):
             i += 1
             tokenizer.advance()
             if i == 43:
-                self.assertEqual(TokenType.INT_CONSTANT, tokenizer.token_type())
-                self.assertEqual(tokenizer.intVal(), 0)
+                self.assertEqual(TokenType.intConstant, tokenizer.token_type())
+                self.assertEqual(tokenizer.intVal(), '0')
             if i == 28:
-                self.assertEqual(TokenType.STRING_CONSTANT, tokenizer.token_type())
+                self.assertEqual(TokenType.stringConstant, tokenizer.token_type())
                 self.assertEqual(tokenizer.stringVal(), "HOW MANY NUMBERS? ")

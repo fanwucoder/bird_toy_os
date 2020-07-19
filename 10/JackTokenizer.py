@@ -11,7 +11,7 @@ KEY_WORDS = ['class', 'constructor', 'function',
              'static', 'var',
              'int', 'char', 'boolean',
              'void', 'true', 'false', "null", 'this', 'let', 'do', 'if', 'else', 'while', 'return']
-SYMBOL = list("[]{}().,;+-*/&|<>=~")
+symbol = list("[]{}().,;+-*/&|<>=~")
 check_re = re.compile("|".join(["(k )".format(k) for k in KEY_WORDS]))
 if sys.version_info.major == 3:
     unicode = str
@@ -21,11 +21,11 @@ if sys.version_info.major == 3:
 
 
 class TokenType(Enum):
-    STRING_CONSTANT = 4
-    INT_CONSTANT = 3
-    IDENTIFIER = 2
-    KEY_WORD = 0
-    SYMBOL = 1
+    stringConstant = 4
+    intConstant = 3
+    identifier = 2
+    keyWord = 0
+    symbol = 1
 
 
 class KeywordType(Enum):
@@ -126,16 +126,16 @@ class JackTokenizer(object):
         self._token = self._tokens[0]
         self._tokens.pop(0)
         if self._iskeyword(self._token):
-            self._token_type = TokenType.KEY_WORD
+            self._token_type = TokenType.keyWord
             self._key_word = KeywordType(KEY_WORDS.index(self._token))
         elif self._is_symbol(self._token):
-            self._token_type = TokenType.SYMBOL
+            self._token_type = TokenType.symbol
         elif self._is_int_constant(self._token):
-            self._token_type = TokenType.INT_CONSTANT
+            self._token_type = TokenType.intConstant
         elif self._is_string_constant(self._token):
-            self._token_type = TokenType.STRING_CONSTANT
+            self._token_type = TokenType.stringConstant
         elif self._is_identifier(self._token):
-            self._token_type = TokenType.IDENTIFIER
+            self._token_type = TokenType.identifier
         else:
             raise ValueError("unknown token type:%s,%s" % (self.line, self._token))
 
@@ -153,7 +153,7 @@ class JackTokenizer(object):
         return self._token
 
     def intVal(self):
-        return int(self._token)
+        return self._token
 
     def stringVal(self):
         return self._token[1:-1]
@@ -162,7 +162,7 @@ class JackTokenizer(object):
         return token in KEY_WORDS
 
     def _is_symbol(self, token):
-        return token in SYMBOL
+        return token in symbol
 
     def _is_identifier(self, _token):
         return re.match("[a-zA-Z_][a-zA-Z0-9]*", _token)
@@ -186,6 +186,41 @@ class JackTokenizer(object):
         self._tokens = [x for x in self._tokens if x.strip()]
 
     def _split_by_symbol(self, cmd):
-        for x in SYMBOL:
+        for x in symbol:
             cmd = cmd.replace(x, " %s " % x)
         return cmd.split(" ")
+
+
+if __name__ == '__main__':
+    import sys
+
+    fn = sys.argv[1]
+    tokenizer = JackTokenizer(fn)
+    out_file = fn.split("/")[-1].split("\\")[-1][:-5] + "T.xml"
+    from lxml import etree as et
+
+    doc = et.Element("tokens")
+    while tokenizer.has_more_tokens():
+        tokenizer.advance()
+        if tokenizer.token_type() == TokenType.keyWord:
+            ele = et.Element("keyword")
+            ele.text = tokenizer.keyword().name.lower()
+            doc.append(ele)
+        elif tokenizer.token_type() == TokenType.symbol:
+            ele = et.Element("symbol")
+            ele.text = tokenizer.symbol()
+            doc.append(ele)
+        elif tokenizer.token_type() == TokenType.identifier:
+            ele = et.Element("identifier")
+            ele.text = tokenizer.identifier()
+            doc.append(ele)
+        elif tokenizer.token_type() == TokenType.intConstant:
+            ele = et.Element("integerConstant")
+            ele.text = str(tokenizer.intVal())
+            doc.append(ele)
+        elif tokenizer.token_type() == TokenType.stringConstant:
+            ele = et.Element("stringConstant")
+            ele.text = tokenizer.stringVal()
+            doc.append(ele)
+    with open(out_file, "w+") as f:
+        f.write(et.tostring(doc, pretty_print=True).decode("utf-8"))
