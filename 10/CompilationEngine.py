@@ -70,7 +70,7 @@ class CompilationEngine(object):
             parent.append(self._build_element())
             self._advance()
         parent.append(self._build_element())
-        self.remove_parent()
+        self._remove_parent()
 
     def compile_subroutine(self):
         parent = self._set_parent("subroutineDec")
@@ -85,18 +85,22 @@ class CompilationEngine(object):
         self._advance()
 
         self._compile_body()
-        self.remove_parent()
+        self._remove_parent()
 
         # if self._tokenizer.token_type()==TokenType.KEY_WORD:
 
     def _compile_body(self):
         parent = self._set_parent("subroutineBody")
         parent.append(self.required(TokenType.symbol, "{"))
+        self._advance()
+        while self._is_var_desc():
+            self.compile_var_desc()
+            self._advance()
         self.compile_statements()
         parent.append(self.required(TokenType.symbol, "}"))
-        self.remove_parent()
+        self._remove_parent()
 
-    def remove_parent(self):
+    def _remove_parent(self):
         self._cur_root.pop()
 
     def compile_parameter_list(self):
@@ -104,15 +108,20 @@ class CompilationEngine(object):
         while not self.is_token(TokenType.symbol, ")"):
             parent.append(self._build_element())
             self._advance()
-        self.remove_parent()
+        self._remove_parent()
 
     def compile_var_desc(self):
-        pass
+        parent = self._set_parent("varDec")
+        while not self.is_token(TokenType.symbol, ";"):
+            parent.append(self._build_element())
+            self._advance()
+        parent.append(self.required(TokenType.symbol, ";"))
+        self._remove_parent()
 
     def compile_statements(self):
 
         self._set_parent("statements")
-        self._advance()
+
         while self._is_statement():
             if self.is_let_statement():
                 self.compile_let()
@@ -122,9 +131,10 @@ class CompilationEngine(object):
                 self.compile_return()
             if self.is_if_statement():
                 self.compile_if()
+                continue
             self._advance()
 
-        self.remove_parent()
+        self._remove_parent()
 
     def compile_do(self):
         parent = self._set_parent("doStatement")
@@ -134,11 +144,12 @@ class CompilationEngine(object):
             parent.append(self._build_element())
             self._advance()
         parent.append(self.required(TokenType.symbol, "("))
+        self._advance()
         self.compile_expression_list()
         parent.append(self.required(TokenType.symbol, ")"))
         self._advance()
         parent.append(self.required(TokenType.symbol, ";"))
-        self.remove_parent()
+        self._remove_parent()
 
     def compile_let(self):
         parent = self._set_parent("letStatement")
@@ -152,7 +163,7 @@ class CompilationEngine(object):
         self.compile_expression()
         parent = self._get_parent()
         parent.append(self.required(TokenType.symbol, ";"))
-        self.remove_parent()
+        self._remove_parent()
 
     def compile_while(self):
         pass
@@ -161,9 +172,10 @@ class CompilationEngine(object):
         parent = self._set_parent("returnStatement")
         parent.append(self.required(TokenType.keyword, KeywordType.RETURN))
         self._advance()
-        self.compile_expression()
+        if not self.is_token(TokenType.symbol, ";"):
+            self.compile_expression()
         parent.append(self.required(TokenType.symbol, ";"))
-        self.remove_parent()
+        self._remove_parent()
 
     def compile_if(self):
         parent = self._set_parent("ifStatement")
@@ -175,18 +187,30 @@ class CompilationEngine(object):
         parent.append(self.required(TokenType.symbol, ")"))
         self._advance()
         parent.append(self.required(TokenType.symbol, "{"))
+        self._advance()
         self.compile_statements()
         parent.append(self.required(TokenType.symbol, "}"))
-        self.remove_parent()
+        self._advance()
+        if self.is_token(TokenType.keyword, KeywordType.ELSE):
+            parent.append(self._build_element())
+            self._advance()
+            parent.append(self.required(TokenType.symbol, "{"))
+            self._advance()
+            self.compile_statements()
+            parent.append(self.required(TokenType.symbol, "}"))
+            self._advance()
+        self._remove_parent()
 
     def compile_expression(self):
         parent = self._set_parent("expression")
         parent = self._set_parent("term")
-        while not self.is_token(TokenType.symbol, ";") and not self.is_token(TokenType.symbol, ")"):
+        while not self.is_token(TokenType.symbol, ";") \
+                and not self.is_token(TokenType.symbol, ")") \
+                and not self.is_token(TokenType.symbol, ","):
             parent.append(self._build_element())
             self._advance()
-        self.remove_parent()
-        self.remove_parent()
+        self._remove_parent()
+        self._remove_parent()
 
     def compile_term(self):
         pass
@@ -194,8 +218,11 @@ class CompilationEngine(object):
     def compile_expression_list(self):
         parent = self._set_parent("expressionList")
         while not self.is_token(TokenType.symbol, ")"):
-            self._advance()
-        self.remove_parent()
+            self.compile_expression()
+            if self.is_token(TokenType.symbol, ","):
+                parent.append(self._build_element())
+                self._advance()
+        self._remove_parent()
 
     def build_identifier(self):
         e = et.Element("identifier")
@@ -297,6 +324,9 @@ class CompilationEngine(object):
 
     def is_if_statement(self):
         return self.is_token(TokenType.keyword, KeywordType.IF)
+
+    def _is_var_desc(self):
+        return self.is_token(TokenType.keyword, KeywordType.VAR)
 
 
 if __name__ == '__main__':
