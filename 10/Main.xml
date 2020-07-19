@@ -1,21 +1,19 @@
 <class>
+  <keyword>class</keyword>
   <identifier>Main</identifier>
   <symbol>{</symbol>
   <classVarDec>
-    <key_word>static</key_word>
-    <key_word>boolean</key_word>
+    <keyword>static</keyword>
+    <keyword>boolean</keyword>
     <identifier>test</identifier>
     <symbol>;</symbol>
   </classVarDec>
-  <class/>
   <subroutineDec>
-    <key_word>function</key_word>
-    <key_word>void</key_word>
+    <keyword>function</keyword>
+    <keyword>void</keyword>
     <identifier>main</identifier>
     <symbol>(</symbol>
-    <parameterList>
-      <symbol>(</symbol>
-    </parameterList>
+    <parameterList/>
     <symbol>)</symbol>
     <subroutineBody>
       <symbol>{</symbol>

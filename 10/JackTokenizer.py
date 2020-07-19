@@ -24,7 +24,7 @@ class TokenType(Enum):
     stringConstant = 4
     intConstant = 3
     identifier = 2
-    keyWord = 0
+    keyword = 0
     symbol = 1
 
 
@@ -126,7 +126,7 @@ class JackTokenizer(object):
         self._token = self._tokens[0]
         self._tokens.pop(0)
         if self._iskeyword(self._token):
-            self._token_type = TokenType.keyWord
+            self._token_type = TokenType.keyword
             self._key_word = KeywordType(KEY_WORDS.index(self._token))
         elif self._is_symbol(self._token):
             self._token_type = TokenType.symbol
@@ -202,7 +202,7 @@ if __name__ == '__main__':
     doc = et.Element("tokens")
     while tokenizer.has_more_tokens():
         tokenizer.advance()
-        if tokenizer.token_type() == TokenType.keyWord:
+        if tokenizer.token_type() == TokenType.keyword:
             ele = et.Element("keyword")
             ele.text = tokenizer.keyword().name.lower()
             doc.append(ele)

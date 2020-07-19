@@ -39,7 +39,7 @@ class TestJackTokenizer(TestCase):
     def test_token_type(self):
         tokenizer = JackTokenizer("ArrayTest/Main.jack")
         tokenizer.advance()
-        self.assertEqual(TokenType.keyWord, tokenizer.token_type())
+        self.assertEqual(TokenType.keyword, tokenizer.token_type())
         self.assertEqual(tokenizer.keyword(), KeywordType.CLASS)
         tokenizer.advance()
         self.assertEqual(TokenType.identifier, tokenizer.token_type())
