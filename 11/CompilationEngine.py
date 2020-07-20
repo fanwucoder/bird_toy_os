@@ -1,9 +1,10 @@
 import sys
-from io import IOBase, StringIO
+from io import IOBase
+
 from lxml import etree as et
-from lxml.etree import Element
 
 from JackTokenizer import JackTokenizer, TokenType, KeywordType
+from SymbolTable import SymbolTable
 
 if sys.version_info.major == 3:
     unicode = str
@@ -20,6 +21,7 @@ class CompilationEngine(object):
         self._cur_root = []
         self._root = None
         self._init()
+        self.symbol = SymbolTable()
 
     def _init(self):
         self._inputbuf = self.create_buffer(self._inputfile)
@@ -46,12 +48,12 @@ class CompilationEngine(object):
         try:
             while self._is_class_var():
                 self.compile_class_var_desc()
-                self._advance()
 
             while self._is_subroutine():
                 self.compile_subroutine()
                 self._advance()
             self._pop_required(parent, TokenType.symbol, "}")
+            print(self.symbol)
         finally:
             self._outputbuf.write(unicode(et.tostring(self._root, pretty_print=True, method="c14n2").decode("utf-8")))
 
@@ -65,14 +67,39 @@ class CompilationEngine(object):
     def compile_class_var_desc(self):
         parent = self._set_parent("classVarDec")
         # 具体可以细分变量类型检查，标识符正确检查
+        parent.append(self._build_element())
+        kind = self.get_kind()
+        self._advance()
+        itype = self.get_type()
+        parent.append(self._build_element())
+        self._advance()
+
         while not self.is_token(TokenType.symbol, ";"):
             parent.append(self._build_element())
+            if self._token()[1] != "," and self._token()[1] != ";":
+                self.symbol.define(self._token()[1], itype, kind)
             self._advance()
         parent.append(self._build_element())
+        self._advance()
         self._remove_parent()
 
+    def get_kind(self):
+        kind = self._token()[1]
+        if isinstance(kind, KeywordType):
+            kind = kind.name.lower()
+        return kind
+
+    def get_type(self):
+        itype = self._token()[1]
+        if isinstance(itype, KeywordType):
+            return itype.name.lower()
+        return itype
+
     def compile_subroutine(self):
+        print(self.symbol)
+        self.symbol.start_subroutine()
         parent = self._set_parent("subroutineDec")
+
         while not self.is_token(TokenType.symbol, "("):
             parent.append(self._build_element())
             self._advance()
@@ -104,15 +131,33 @@ class CompilationEngine(object):
 
     def compile_parameter_list(self):
         parent = self._set_parent("parameterList")
+        kind = "arg"
+        itype = None
         while not self.is_token(TokenType.symbol, ")"):
+            if not itype:
+                itype = self.get_type()
             parent.append(self._build_element())
             self._advance()
+            if not self.is_token(TokenType.symbol, ",") and not self.is_token(TokenType.symbol, ")"):
+                name = self._token()[1]
+                self.symbol.define(name, itype, kind)
+                parent.append(self._build_element())
+                self._advance()
         self._remove_parent()
 
     def compile_var_desc(self):
         parent = self._set_parent("varDec")
+        self._pop_required(parent, TokenType.keyword, KeywordType.VAR)
+        kind = "var"
+        itype = self.get_type()
+        parent.append(self._build_element())
+        self._advance()
+
         while not self.is_token(TokenType.symbol, ";"):
             parent.append(self._build_element())
+            if not self.is_token(TokenType.symbol, ",") and not self.is_token(TokenType.symbol, ";"):
+                self.symbol.define(self._token()[1], itype, kind)
+
             self._advance()
         parent.append(self.required(TokenType.symbol, ";"))
         self._remove_parent()
@@ -315,7 +360,7 @@ class CompilationEngine(object):
             a, b = token_type, self._tokenizer.stringVal()
         else:
             a, b = None, None
-        print(a, b, self._tokenizer.line)
+        # print(a, b, self._tokenizer.line)
         return a, b
 
     def _advance(self):
@@ -404,5 +449,5 @@ class CompilationEngine(object):
 
 
 if __name__ == '__main__':
-    compiler = CompilationEngine("Square\\Square.jack", "Square.xml")
+    compiler = CompilationEngine("Square\\Main.jack", "Main.xml")
     compiler.compile_class()

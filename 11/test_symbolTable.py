@@ -54,7 +54,7 @@ class TestSymbolTable(TestCase):
         self.stb.define("g", "int", "var")
         self.stb.define("h", "int", "arg")
 
-        self.assertEqual(self.stb.index_of("e"), 2)
-        self.assertEqual(self.stb.index_of("f"), 2)
-        self.assertEqual(self.stb.index_of("g"), 2)
-        self.assertEqual(self.stb.index_of("h"), 2)
+        self.assertEqual(self.stb.index_of("e"), 1)
+        self.assertEqual(self.stb.index_of("f"), 1)
+        self.assertEqual(self.stb.index_of("g"), 1)
+        self.assertEqual(self.stb.index_of("h"), 1)

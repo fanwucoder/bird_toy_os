@@ -17,6 +17,18 @@ class SymbolTable(object):
         self._a_dict_idx = dict()
         self._a_idx = 0
 
+    def __str__(self):
+        ret = []
+        self.format_tb(ret, self._s_dict, self._s_dict_idx)
+        self.format_tb(ret, self._f_dict, self._f_dict_idx)
+        self.format_tb(ret, self._v_dict, self._v_dict_idx)
+        self.format_tb(ret, self._a_dict, self._a_dict_idx)
+        return "\n".join(ret)
+
+    def format_tb(self, ret, dict1, dict2):
+        for k, v in dict1.items():
+            ret.append("%s %s %s %s" % (k, v[1], v[0], dict2[k]))
+
     def start_subroutine(self):
 
         self._v_dict = dict()
@@ -30,19 +42,19 @@ class SymbolTable(object):
     def define(self, name, itype, kind):
         if kind == "static":
             self._s_dict[name] = (kind, itype)
-            self._s_dict_idx[name] = self._s_idx + 1
+            self._s_dict_idx[name] = self._s_idx
             self._s_idx += 1
         elif kind == "field":
             self._f_dict[name] = (kind, itype)
-            self._f_dict_idx[name] = self._f_idx + 1
+            self._f_dict_idx[name] = self._f_idx
             self._f_idx += 1
         elif kind == "var":
             self._v_dict[name] = (kind, itype)
-            self._v_dict_idx[name] = self._v_idx + 1
+            self._v_dict_idx[name] = self._v_idx
             self._v_idx += 1
         elif kind == "arg":
             self._a_dict[name] = (kind, itype)
-            self._a_dict_idx[name] = self._a_idx + 1
+            self._a_dict_idx[name] = self._a_idx
             self._a_idx += 1
 
     def var_count(self, kind):
