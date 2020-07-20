@@ -22,7 +22,7 @@ if sys.version_info.major == 3:
 
 class TokenType(Enum):
     stringConstant = 4
-    intConstant = 3
+    integerConstant = 3
     identifier = 2
     keyword = 0
     symbol = 1
@@ -89,7 +89,8 @@ class JackTokenizer(object):
                 if b != -1:
                     line = line[b + 2:]
                     is_block_comment = False
-
+                else:
+                    continue
             if "/*" in line:
                 while line.find("/*") != -1:
                     a = line.find("/*")
@@ -131,7 +132,7 @@ class JackTokenizer(object):
         elif self._is_symbol(self._token):
             self._token_type = TokenType.symbol
         elif self._is_int_constant(self._token):
-            self._token_type = TokenType.intConstant
+            self._token_type = TokenType.integerConstant
         elif self._is_string_constant(self._token):
             self._token_type = TokenType.stringConstant
         elif self._is_identifier(self._token):
@@ -214,7 +215,7 @@ if __name__ == '__main__':
             ele = et.Element("identifier")
             ele.text = tokenizer.identifier()
             doc.append(ele)
-        elif tokenizer.token_type() == TokenType.intConstant:
+        elif tokenizer.token_type() == TokenType.integerConstant:
             ele = et.Element("integerConstant")
             ele.text = str(tokenizer.intVal())
             doc.append(ele)

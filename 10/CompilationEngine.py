@@ -39,12 +39,10 @@ class CompilationEngine(object):
         parent = self._set_parent("class")
         self._root = parent
         self._advance()
-        parent.append(self.required(TokenType.keyword, KeywordType.CLASS))
-        self._advance()
-        parent.append(self.required(TokenType.identifier))
-        self._advance()
-        parent.append(self.required(TokenType.symbol, "{"))
-        self._advance()
+        self._pop_required(parent, TokenType.keyword, KeywordType.CLASS)
+        self._pop_required(parent, TokenType.identifier)
+        self._pop_required(parent, TokenType.symbol, "{")
+
         try:
             while self._is_class_var():
                 self.compile_class_var_desc()
@@ -53,8 +51,9 @@ class CompilationEngine(object):
             while self._is_subroutine():
                 self.compile_subroutine()
                 self._advance()
+            self._pop_required(parent, TokenType.symbol, "}")
         finally:
-            self._outputbuf.write(unicode(et.tostring(self._root, pretty_print=True).decode("utf-8")))
+            self._outputbuf.write(unicode(et.tostring(self._root, pretty_print=True, method="c14n2").decode("utf-8")))
 
         self._outputbuf.close()
 
@@ -132,6 +131,9 @@ class CompilationEngine(object):
             if self.is_if_statement():
                 self.compile_if()
                 continue
+            if self.is_while_statement():
+                self.compile_while()
+                continue
             self._advance()
 
         self._remove_parent()
@@ -157,16 +159,29 @@ class CompilationEngine(object):
         self._advance()
         parent.append(self.required(TokenType.identifier))
         self._advance()
+        if self.is_token(TokenType.symbol, "["):
+            parent.append(self._build_element())
+            self._advance()
+            self.compile_expression()
+            parent.append(self.required(TokenType.symbol, "]"))
+            self._advance()
         # 有可能是数组
         parent.append(self.required(TokenType.symbol, "="))
         self._advance()
         self.compile_expression()
-        parent = self._get_parent()
         parent.append(self.required(TokenType.symbol, ";"))
         self._remove_parent()
 
     def compile_while(self):
-        pass
+        parent = self._set_parent("whileStatement")
+        self._pop_required(parent, TokenType.keyword, KeywordType.WHILE)
+        self._pop_required(parent, TokenType.symbol, "(")
+        self.compile_expression()
+        self._pop_required(parent, TokenType.symbol, ")")
+        self._pop_required(parent, TokenType.symbol, "{")
+        self.compile_statements()
+        self._pop_required(parent, TokenType.symbol, "}")
+        self._remove_parent()
 
     def compile_return(self):
         parent = self._set_parent("returnStatement")
@@ -181,21 +196,15 @@ class CompilationEngine(object):
         parent = self._set_parent("ifStatement")
         parent.append(self.required(TokenType.keyword, KeywordType.IF))
         self._advance()
-        parent.append(self.required(TokenType.symbol, "("))
-        self._advance()
+        self._pop_required(parent, TokenType.symbol, "(")
         self.compile_expression()
-        parent.append(self.required(TokenType.symbol, ")"))
-        self._advance()
-        parent.append(self.required(TokenType.symbol, "{"))
-        self._advance()
+        self._pop_required(parent, TokenType.symbol, ")")
+        self._pop_required(parent, TokenType.symbol, "{")
         self.compile_statements()
-        parent.append(self.required(TokenType.symbol, "}"))
-        self._advance()
+        self._pop_required(parent, TokenType.symbol, "}")
         if self.is_token(TokenType.keyword, KeywordType.ELSE):
-            parent.append(self._build_element())
-            self._advance()
-            parent.append(self.required(TokenType.symbol, "{"))
-            self._advance()
+            self._pop_required(parent, TokenType.keyword, KeywordType.ELSE)
+            self._pop_required(parent, TokenType.symbol, "{")
             self.compile_statements()
             parent.append(self.required(TokenType.symbol, "}"))
             self._advance()
@@ -203,17 +212,69 @@ class CompilationEngine(object):
 
     def compile_expression(self):
         parent = self._set_parent("expression")
-        parent = self._set_parent("term")
-        while not self.is_token(TokenType.symbol, ";") \
-                and not self.is_token(TokenType.symbol, ")") \
-                and not self.is_token(TokenType.symbol, ","):
-            parent.append(self._build_element())
-            self._advance()
-        self._remove_parent()
+
+        while not self._is_end():
+            self.compile_term()
+            if self._is_op(False):
+                parent.append(self._build_element())
+                self._advance()
+                # parent.append(self._build_element())
+            # self._advance()
+
         self._remove_parent()
 
     def compile_term(self):
-        pass
+        parent = self._set_parent("term")
+        first = True
+        while not self._is_op(first) and not self._is_end():
+            first = False
+            if self.is_token(TokenType.symbol, "("):
+                parent.append(self._build_element())
+                self._advance()
+                self.compile_expression()
+                parent.append(self.required(TokenType.symbol, ")"))
+            elif self.is_token(TokenType.symbol, "["):
+                parent.append(self._build_element())
+                self._advance()
+                self.compile_expression()
+                parent.append(self.required(TokenType.symbol, "]"))
+            elif self._is_unary_op():
+                parent.append(self._build_element())
+                self._advance()
+                self.compile_term()
+                continue
+            elif self.is_token(TokenType.identifier):
+                parent.append(self._build_element())
+                self._advance()
+                if self.is_token(TokenType.symbol, "("):
+                    self.compile_expression_list()
+                    parent.append(self.required(TokenType.symbol, ")"))
+                if self.is_token(TokenType.symbol, "."):
+                    parent.append(self._build_element())
+                    self._advance()
+                    self._pop_required(parent, TokenType.identifier)
+                    self._pop_required(parent, TokenType.symbol, "(")
+                    self.compile_expression_list()
+                    parent.append(self.required(TokenType.symbol, ")"))
+                    self._advance()
+                continue
+
+            else:
+                parent.append(self._build_element())
+            self._advance()
+        self._remove_parent()
+
+    def _pop_required(self, parent, tk, val=None):
+        parent.append(self.required(tk, val))
+        self._advance()
+
+    def _is_op(self, first):
+        tk, val = self._token()
+        return tk == TokenType.symbol and val in '+*/&|<>=' or (val == '-' and not first)
+
+    def _is_unary_op(self):
+        tk, val = self._token()
+        return tk == TokenType.symbol and val in '-~'
 
     def compile_expression_list(self):
         parent = self._set_parent("expressionList")
@@ -248,7 +309,7 @@ class CompilationEngine(object):
             a, b = token_type, self._tokenizer.symbol()
         elif self._tokenizer.token_type() == TokenType.identifier:
             a, b = token_type, self._tokenizer.identifier()
-        elif self._tokenizer.token_type() == TokenType.intConstant:
+        elif self._tokenizer.token_type() == TokenType.integerConstant:
             a, b = token_type, self._tokenizer.intVal()
         elif self._tokenizer.token_type() == TokenType.stringConstant:
             a, b = token_type, self._tokenizer.stringVal()
@@ -258,7 +319,8 @@ class CompilationEngine(object):
         return a, b
 
     def _advance(self):
-        self._tokenizer.advance()
+        if self._tokenizer.has_more_tokens():
+            self._tokenizer.advance()
 
     def required(self, token, val=None):
         self._required_type(token, val)
@@ -277,7 +339,7 @@ class CompilationEngine(object):
         return self.is_token(TokenType.keyword, KeywordType.FIELD) or self.is_token(TokenType.keyword,
                                                                                     KeywordType.STATIC)
 
-    def is_token(self, token, val):
+    def is_token(self, token, val=None):
         t, v = self._token()
         if val is not None:
             return t == token and v == val
@@ -312,6 +374,11 @@ class CompilationEngine(object):
             return True
         if self.is_if_statement():
             return True
+        if self.is_while_statement():
+            return True
+
+    def is_while_statement(self):
+        return self.is_token(TokenType.keyword, KeywordType.WHILE)
 
     def is_let_statement(self):
         return self.is_token(TokenType.keyword, KeywordType.LET)
@@ -328,7 +395,14 @@ class CompilationEngine(object):
     def _is_var_desc(self):
         return self.is_token(TokenType.keyword, KeywordType.VAR)
 
+    def _is_end(self):
+        return self.is_token(TokenType.symbol, ";") or \
+               self.is_token(TokenType.symbol, ";") \
+               or self.is_token(TokenType.symbol, ")") \
+               or self.is_token(TokenType.symbol, ",") \
+               or self.is_token(TokenType.symbol, "]")
+
 
 if __name__ == '__main__':
-    compiler = CompilationEngine("ExpressionLessSquare\\Main.jack", "Main.xml")
+    compiler = CompilationEngine("Square\\Square.jack", "Square.xml")
     compiler.compile_class()

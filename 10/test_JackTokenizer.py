@@ -54,7 +54,7 @@ class TestJackTokenizer(TestCase):
             i += 1
             tokenizer.advance()
             if i == 43:
-                self.assertEqual(TokenType.intConstant, tokenizer.token_type())
+                self.assertEqual(TokenType.integerConstant, tokenizer.token_type())
                 self.assertEqual(tokenizer.intVal(), '0')
             if i == 28:
                 self.assertEqual(TokenType.stringConstant, tokenizer.token_type())
