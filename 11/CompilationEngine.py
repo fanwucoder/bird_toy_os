@@ -5,6 +5,7 @@ from lxml import etree as et
 
 from JackTokenizer import JackTokenizer, TokenType, KeywordType
 from SymbolTable import SymbolTable
+from VMWriter import VMWriter
 
 if sys.version_info.major == 3:
     unicode = str
@@ -20,12 +21,15 @@ class CompilationEngine(object):
         self._tokenizer: JackTokenizer = None
         self._cur_root = []
         self._root = None
+        self.class_name = None
+        self.vm_writer = None  # type:VMWriter
         self._init()
         self.symbol = SymbolTable()
 
     def _init(self):
         self._inputbuf = self.create_buffer(self._inputfile)
         self._outputbuf = self.create_buffer(self._outputfile, mode="w+")
+        self.vm_writer = VMWriter(self._outputfile[:-4] + ".vm")
         self._tokenizer = JackTokenizer(self._inputbuf)
 
     def create_buffer(self, fn, mode='r'):
@@ -42,6 +46,7 @@ class CompilationEngine(object):
         self._root = parent
         self._advance()
         self._pop_required(parent, TokenType.keyword, KeywordType.CLASS)
+        self.class_name = self._token()[1]
         self._pop_required(parent, TokenType.identifier)
         self._pop_required(parent, TokenType.symbol, "{")
 
@@ -56,13 +61,14 @@ class CompilationEngine(object):
             print(self.symbol)
         finally:
             self._outputbuf.write(unicode(et.tostring(self._root, pretty_print=True, method="c14n2").decode("utf-8")))
-
+            self.vm_writer.close()
         self._outputbuf.close()
 
     def _required_type(self, token_type, val):
         tp, tv = self._token()
         if token_type != tp or ((tp == TokenType.keyword or tp == TokenType.symbol) and (val != tv)):
             raise ValueError("token must be %s,%s" % (token_type, val))
+        return tp, tv
 
     def compile_class_var_desc(self):
         parent = self._set_parent("classVarDec")
@@ -97,19 +103,29 @@ class CompilationEngine(object):
 
     def compile_subroutine(self):
         print(self.symbol)
+        var_cnt = self.symbol.var_count("var")
+        field_cnt = self.symbol.var_count("field")
         self.symbol.start_subroutine()
         parent = self._set_parent("subroutineDec")
-
-        while not self.is_token(TokenType.symbol, "("):
-            parent.append(self._build_element())
-            self._advance()
-        parent.append(self.required(TokenType.symbol, "("))
+        method_type = self._token()[1]
         self._advance()
+        return_type = self._token()[1]
+        self._advance()
+        function_name = self._token()[1]
+        self._advance()
+        self._pop_required(parent, TokenType.symbol, "(")
         self.compile_parameter_list()
 
-        parent.append(self.required(TokenType.symbol, ")"))
-        self._advance()
+        if method_type in (KeywordType.CONSTRUCTOR, KeywordType.FUNCTION):
+            self.vm_writer.write_function(self.class_name + "." + function_name, var_cnt)
+            self.vm_writer.write_push("constant", field_cnt)
+            self.vm_writer.write_call("Memory.alloc", field_cnt)
+        else:
+            self.vm_writer.write_function(self.class_name + "." + function_name, var_cnt + 1)
 
+        # parent.append(self.required(TokenType.symbol, ")"))
+        # self._advance()
+        self._pop_required(parent, TokenType.symbol, ")")
         self._compile_body()
         self._remove_parent()
 
@@ -117,8 +133,8 @@ class CompilationEngine(object):
 
     def _compile_body(self):
         parent = self._set_parent("subroutineBody")
-        parent.append(self.required(TokenType.symbol, "{"))
-        self._advance()
+
+        self._pop_required(parent, TokenType.symbol, "{")
         while self._is_var_desc():
             self.compile_var_desc()
             self._advance()
@@ -159,7 +175,7 @@ class CompilationEngine(object):
                 self.symbol.define(self._token()[1], itype, kind)
 
             self._advance()
-        parent.append(self.required(TokenType.symbol, ";"))
+        self.required(TokenType.symbol, ";")
         self._remove_parent()
 
     def compile_statements(self):
@@ -185,13 +201,25 @@ class CompilationEngine(object):
 
     def compile_do(self):
         parent = self._set_parent("doStatement")
-        parent.append(self.required(TokenType.keyword, KeywordType.DO))
-        self._advance()
-        while not self.is_token(TokenType.symbol, "("):
-            parent.append(self._build_element())
+        self._pop_required(parent, TokenType.keyword, KeywordType.DO)
+        type1, id1 = self._pop_required(parent, TokenType.identifier)
+
+        symbol_kind = self.symbol.kind_of(id1)
+        function_type = self.symbol.type_of(id1)
+        # 调用变量方法
+        if symbol_kind == "static":
+            self.vm_writer.write_push("static", self.symbol.index_of(id1))
+        if symbol_kind == "var":
+            self.vm_writer.write_push("local", self.symbol.index_of(id1))
+
+        typ2, id2 = self._token()
+        if id2 == ".":
             self._advance()
-        parent.append(self.required(TokenType.symbol, "("))
-        self._advance()
+            _, function_type = self._pop_required(parent, TokenType.identifier)
+        else:
+            function_type = self.class_name
+
+        self._pop_required(parent, TokenType.symbol, "(")
         self.compile_expression_list()
         parent.append(self.required(TokenType.symbol, ")"))
         self._advance()
@@ -200,10 +228,9 @@ class CompilationEngine(object):
 
     def compile_let(self):
         parent = self._set_parent("letStatement")
-        parent.append(self.required(TokenType.keyword, KeywordType.LET))
-        self._advance()
-        parent.append(self.required(TokenType.identifier))
-        self._advance()
+        self._pop_required(parent, TokenType.keyword, KeywordType.LET)
+        self._pop_required(parent, TokenType.identifier)
+
         if self.is_token(TokenType.symbol, "["):
             parent.append(self._build_element())
             self._advance()
@@ -211,6 +238,7 @@ class CompilationEngine(object):
             parent.append(self.required(TokenType.symbol, "]"))
             self._advance()
         # 有可能是数组
+        # 替换正则
         parent.append(self.required(TokenType.symbol, "="))
         self._advance()
         self.compile_expression()
@@ -310,8 +338,9 @@ class CompilationEngine(object):
         self._remove_parent()
 
     def _pop_required(self, parent, tk, val=None):
-        parent.append(self.required(tk, val))
+        tk, val = self.required(tk, val)
         self._advance()
+        return tk, val
 
     def _is_op(self, first):
         tk, val = self._token()
@@ -368,8 +397,7 @@ class CompilationEngine(object):
             self._tokenizer.advance()
 
     def required(self, token, val=None):
-        self._required_type(token, val)
-        return self._build_element()
+        return self._required_type(token, val)
 
     def _build_element(self):
         a, b = self._token()

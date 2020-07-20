@@ -1,9 +1,9 @@
 class VMWriter(object):
     def __init__(self, output):
-        pass
+        self._out_buf = open(output, "w+")
 
     def write_push(self, segment, index):
-        pass
+        self._out_buf.write("push %s %s" % (segment, index))
 
     def write_pop(self, segment, index):
         pass
@@ -24,10 +24,10 @@ class VMWriter(object):
         pass
 
     def write_function(self, name, n_args):
-        pass
+        self._out_buf.write("function %s %s" % (name, n_args))
 
     def write_return(self):
         pass
 
     def close(self):
-        pass
+        self._out_buf.close()
