@@ -8,6 +8,12 @@ from SymbolTable import SymbolTable
 from VMWriter import VMWriter
 
 SEG_CONSTANT = "constant"
+SEG_LOCAL = "local"
+SEG_STATIC = "static"
+SEG_THAT = "that"
+SEG_THIS = "this"
+SEG_TEMP = "temp"
+SEG_ARG = "argument"
 if sys.version_info.major == 3:
     unicode = str
     from io import TextIOWrapper
@@ -25,6 +31,7 @@ class CompilationEngine(object):
         self._root = None
         self.class_name = None
         self.return_type = None
+        self._label_cnt = 0
         self.vm_writer = None  # type:VMWriter
         self._init()
         self.symbol = SymbolTable()
@@ -59,7 +66,6 @@ class CompilationEngine(object):
 
             while self._is_subroutine():
                 self.compile_subroutine()
-                self._advance()
             self._pop_required(parent, TokenType.symbol, "}")
             print(self.symbol)
         finally:
@@ -67,7 +73,7 @@ class CompilationEngine(object):
             self.vm_writer.close()
         self._outputbuf.close()
 
-    def _required_type(self, token_type, val):
+    def _required_type(self, token_type, val=None):
         tp, tv = self._token()
         if token_type != tp or ((tp == TokenType.keyword or tp == TokenType.symbol) and (val != tv)):
             raise ValueError("token must be %s,%s" % (token_type, val))
@@ -106,8 +112,6 @@ class CompilationEngine(object):
 
     def compile_subroutine(self):
         print(self.symbol)
-        var_cnt = self.symbol.var_count("var")
-        field_cnt = self.symbol.var_count("field")
         self.symbol.start_subroutine()
         parent = self._set_parent("subroutineDec")
         method_type = self._token()[1]
@@ -118,31 +122,29 @@ class CompilationEngine(object):
         self._advance()
         self._pop_required(parent, TokenType.symbol, "(")
         self.compile_parameter_list()
+        full_name = "{}.{}".format(self.class_name, function_name)
 
-        if method_type == KeywordType.CONSTRUCTOR:
-            self.vm_writer.write_function(self.class_name + "." + function_name, var_cnt)
-            self.vm_writer.write_push(SEG_CONSTANT, field_cnt)
-            self.vm_writer.write_call("Memory.alloc", field_cnt)
-        elif method_type == KeywordType.FUNCTION:
-            self.vm_writer.write_function(self.class_name + "." + function_name, var_cnt)
-        else:
-            self.vm_writer.write_function(self.class_name + "." + function_name, var_cnt + 1)
-
-        # parent.append(self.required(TokenType.symbol, ")"))
-        # self._advance()
         self._pop_required(parent, TokenType.symbol, ")")
-        self._compile_body()
+        self._compile_body(full_name, method_type)
         self._remove_parent()
-
+        self.vm_writer.write_comment("end function %s" % function_name)
+        self.vm_writer.write_comment("")
         # if self._tokenizer.token_type()==TokenType.KEY_WORD:
 
-    def _compile_body(self):
+    def _compile_body(self, full_name, method_type):
         parent = self._set_parent("subroutineBody")
-
         self._pop_required(parent, TokenType.symbol, "{")
         while self._is_var_desc():
             self.compile_var_desc()
-            self._advance()
+
+        var_cnt = self.symbol.var_count("var")
+        field_cnt = self.symbol.var_count("field")
+        self.vm_writer.write_function(full_name, var_cnt)
+        if method_type == KeywordType.CONSTRUCTOR:
+            #  构造函数分配对象内存
+            self.vm_writer.write_push(SEG_CONSTANT, field_cnt)
+            self.vm_writer.write_call("Memory.alloc", "1")
+
         self.compile_statements()
         self._pop_required(parent, TokenType.symbol, "}")
         self._remove_parent()
@@ -151,20 +153,16 @@ class CompilationEngine(object):
         self._cur_root.pop()
 
     def compile_parameter_list(self):
-        parent = self._set_parent("parameterList")
         kind = "arg"
-        itype = None
         while not self.is_token(TokenType.symbol, ")"):
-            if not itype:
-                itype = self.get_type()
-            parent.append(self._build_element())
+            itype = self.get_type()
             self._advance()
-            if not self.is_token(TokenType.symbol, ",") and not self.is_token(TokenType.symbol, ")"):
-                name = self._token()[1]
-                self.symbol.define(name, itype, kind)
-                parent.append(self._build_element())
+            name = self._token()[1]
+            self.symbol.define(name, itype, kind)
+            self._advance()
+            # parent.append(self._build_element())
+            if self.is_token(TokenType.symbol, ","):
                 self._advance()
-        self._remove_parent()
 
     def compile_var_desc(self):
         parent = self._set_parent("varDec")
@@ -175,12 +173,11 @@ class CompilationEngine(object):
         self._advance()
 
         while not self.is_token(TokenType.symbol, ";"):
-            parent.append(self._build_element())
+            # parent.append(self._build_element())
             if not self.is_token(TokenType.symbol, ",") and not self.is_token(TokenType.symbol, ";"):
                 self.symbol.define(self._token()[1], itype, kind)
-
             self._advance()
-        self.required(TokenType.symbol, ";")
+        self._pop_required(parent, TokenType.symbol, ";")
         self._remove_parent()
 
     def compile_statements(self):
@@ -206,9 +203,14 @@ class CompilationEngine(object):
         parent = self._set_parent("doStatement")
         self._pop_required(parent, TokenType.keyword, KeywordType.DO)
         type1, id1 = self._pop_required(parent, TokenType.identifier)
+        self.compile_call(type1, id1)
+        self.vm_writer.write_pop(SEG_TEMP, 0)
+        self._pop_required(parent, TokenType.symbol, ";")
+        self._remove_parent()
 
+    def compile_call(self, typ1, id1):
+        parent = None
         symbol_kind = self.symbol.kind_of(id1)
-        function_type = self.symbol.type_of(id1)
         # 调用变量方法
         n_args = 0
         typ2, id2 = self._token()
@@ -238,20 +240,16 @@ class CompilationEngine(object):
             function_type = self.class_name
             full_name = "%s.%s" % (function_type, id1)
         self._n_args.append(n_args)
-
         self._pop_required(parent, TokenType.symbol, "(")
         self.compile_expression_list()
+        self._pop_required(parent, TokenType.symbol, ")")
         n_args = self._n_args.pop(-1)
         self.vm_writer.write_call(full_name, n_args=n_args)
-
-        self._pop_required(parent, TokenType.symbol, ")")
-        self._pop_required(parent, TokenType.symbol, ";")
-        self._remove_parent()
 
     def compile_let(self):
         parent = self._set_parent("letStatement")
         self._pop_required(parent, TokenType.keyword, KeywordType.LET)
-        self._pop_required(parent, TokenType.identifier)
+        tk, val = self._pop_required(parent, TokenType.identifier)
 
         if self.is_token(TokenType.symbol, "["):
             parent.append(self._build_element())
@@ -262,20 +260,31 @@ class CompilationEngine(object):
         # 替换正则
         self._pop_required(parent, TokenType.symbol, "=")
         self.compile_expression()
-        parent.append(self.required(TokenType.symbol, ";"))
+        seg, idx = self.get_var_seg_idx(val)
+        self.vm_writer.write_pop(seg, idx)
+        self._pop_required(parent, TokenType.symbol, ";")
         self._remove_parent()
 
     def compile_while(self):
+        self.vm_writer.write_comment("start while")
         parent = self._set_parent("whileStatement")
         self._pop_required(parent, TokenType.keyword, KeywordType.WHILE)
+        label1 = self._get_label()
+        self.vm_writer.write_label(label1)
+        label2 = self._get_label()
         self._pop_required(parent, TokenType.symbol, "(")
         self.compile_expression()
+        self.vm_writer.write_arithmetic("~")
         self._pop_required(parent, TokenType.symbol, ")")
+        self.vm_writer.write_if(label2)
         self._pop_required(parent, TokenType.symbol, "{")
         self.compile_statements()
         self._pop_required(parent, TokenType.symbol, "}")
+        self.vm_writer.write_goto(label1)
+        self.vm_writer.write_label(label2)
         self._remove_parent()
 
+        self.vm_writer.write_comment("end while")
     def compile_return(self):
         parent = self._set_parent("returnStatement")
         self._pop_required(parent, TokenType.keyword, KeywordType.RETURN)
@@ -289,19 +298,29 @@ class CompilationEngine(object):
 
     def compile_if(self):
         parent = self._set_parent("ifStatement")
+        self.vm_writer.write_comment("compile if")
         self._pop_required(parent, TokenType.keyword, KeywordType.IF)
         self._pop_required(parent, TokenType.symbol, "(")
+        label1 = self._get_label()
+        label2 = self._get_label()
         self.compile_expression()
+        self.vm_writer.write_arithmetic("~")
+        self.vm_writer.write_if(label1)
         self._pop_required(parent, TokenType.symbol, ")")
         self._pop_required(parent, TokenType.symbol, "{")
         self.compile_statements()
         self._pop_required(parent, TokenType.symbol, "}")
+        self.vm_writer.write_goto(label2)
+        self.vm_writer.write_label(label1)
         if self.is_token(TokenType.keyword, KeywordType.ELSE):
             self._pop_required(parent, TokenType.keyword, KeywordType.ELSE)
             self._pop_required(parent, TokenType.symbol, "{")
             self.compile_statements()
             self._pop_required(parent, TokenType.symbol, "}")
+        self.vm_writer.write_label(label2)
         self._remove_parent()
+
+        self.vm_writer.write_comment(" if end")
 
     def compile_expression(self):
         parent = self._set_parent("expression")
@@ -330,7 +349,7 @@ class CompilationEngine(object):
             if self.is_token(TokenType.symbol, "("):
                 self._advance()
                 self.compile_expression()
-                self.required(TokenType.symbol, ")")
+                self._pop_required(parent, TokenType.symbol, ")")
 
             elif self.is_token(TokenType.symbol, "["):
                 parent.append(self._build_element())
@@ -338,30 +357,34 @@ class CompilationEngine(object):
                 self.compile_expression()
                 parent.append(self.required(TokenType.symbol, "]"))
             elif self._is_unary_op():
-                parent.append(self._build_element())
+                token, op = self._token()
                 self._advance()
+                op = "neg" if op == "-" else op
                 self.compile_term()
+                self.vm_writer.write_arithmetic(op)
                 continue
             elif self.is_token(TokenType.identifier):
-                parent.append(self._build_element())
-                self._advance()
-                if self.is_token(TokenType.symbol, "("):
-                    self.compile_expression_list()
-                    parent.append(self.required(TokenType.symbol, ")"))
-                if self.is_token(TokenType.symbol, "."):
-                    parent.append(self._build_element())
-                    self._advance()
-                    self._pop_required(parent, TokenType.identifier)
-                    self._pop_required(parent, TokenType.symbol, "(")
-                    self.compile_expression_list()
-                    self._pop_required(parent, TokenType.symbol, ")")
-                continue
+                tk, val = self._pop_required(parent, TokenType.identifier)
+                if self.is_token(TokenType.symbol, "(") or self.is_token(TokenType.symbol, "."):
+                    self.compile_call(tk, val)
+                else:
+                    # 变量
+                    seg, idx = self.get_var_seg_idx(val)
+                    self.vm_writer.write_push(seg, idx)
+
 
             else:
                 if self.is_token(TokenType.integerConstant):
-                    tk, val = self._required_type(TokenType.integerConstant, None)
+                    tk, val = self._required_type(TokenType.integerConstant)
                     self.vm_writer.write_push(SEG_CONSTANT, val)
-            self._advance()
+                elif self.is_token(TokenType.keyword, KeywordType.TRUE):
+                    self.vm_writer.write_push(SEG_CONSTANT, "0")
+                    self.vm_writer.write_arithmetic("~")
+                elif self.is_token(TokenType.keyword, KeywordType.FALSE):
+                    self.vm_writer.write_push(SEG_CONSTANT, "0")
+                elif self.is_token(TokenType.keyword, KeywordType.NULL):
+                    self.vm_writer.write_push(SEG_CONSTANT, "0")
+                self._advance()
         self._remove_parent()
 
     def _pop_required(self, parent, tk, val=None):
@@ -384,8 +407,7 @@ class CompilationEngine(object):
             n_args += 1
             self.compile_expression()
             if self.is_token(TokenType.symbol, ","):
-                parent.append(self._build_element())
-                self._advance()
+                self._pop_required(parent, TokenType.symbol, ",")
         self._n_args[-1] = n_args
         self._remove_parent()
 
@@ -405,7 +427,8 @@ class CompilationEngine(object):
         return e
 
     def _token(self):
-
+        # if self._tokenizer.line > 44:
+        #     raise ValueError("测试代码，翻译到此停止")
         token_type = self._tokenizer.token_type()
         if self._tokenizer.token_type() == TokenType.keyword:
             a, b = token_type, self._tokenizer.keyword()
@@ -505,7 +528,24 @@ class CompilationEngine(object):
                or self.is_token(TokenType.symbol, ",") \
                or self.is_token(TokenType.symbol, "]")
 
+    def get_var_seg_idx(self, val):
+        kind = self.symbol.kind_of(val)
+        idx = self.symbol.index_of(val)
+        if kind == "static":
+            return SEG_STATIC, idx
+        elif kind == "var":
+            return SEG_LOCAL, idx
+        elif kind == "field":
+            return SEG_THIS, idx
+        elif kind == "arg":
+            return SEG_ARG, idx
+
+    def _get_label(self):
+        label = "label_%s" % self._label_cnt
+        self._label_cnt += 1
+        return label
+
 
 if __name__ == '__main__':
-    compiler = CompilationEngine("Seven\\Main.jack", "Seven\\Main.xml")
+    compiler = CompilationEngine("ConvertToBin\\Main.jack", "ConvertToBin\\Main.xml")
     compiler.compile_class()

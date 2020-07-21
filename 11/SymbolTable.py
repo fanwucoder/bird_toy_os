@@ -23,7 +23,7 @@ class SymbolTable(object):
         self.format_tb(ret, self._f_dict, self._f_dict_idx)
         self.format_tb(ret, self._v_dict, self._v_dict_idx)
         self.format_tb(ret, self._a_dict, self._a_dict_idx)
-        return "\n".join(ret)
+        return "\n".join(ret) + "\n"
 
     def format_tb(self, ret, dict1, dict2):
         for k, v in dict1.items():

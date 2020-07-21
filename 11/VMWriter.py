@@ -6,30 +6,29 @@ class VMWriter(object):
         self._out_buf.write("push %s %s\n" % (segment, index))
 
     def write_pop(self, segment, index):
-        pass
+        self._out_buf.write("pop {} {}\n".format(segment, index))
 
     def write_arithmetic(self, command):
         # 不包括算数术取反
-        if command == "+":
-            command = "add"
-        elif command == "-":
-            command = "sub"
-        elif command == "*":
+        c_map = {"+": "add", "-": "sub", "~": "not", "=": "eq", ">": "gt", "<": "lt", "&": "and", "|": "or",
+                 "neg": "neg"}
+
+        if command == "*":
             self.write_call("Math.multiply", 2)
             return
         elif command == "/":
             self.write_call("Math.divide", 2)
             return
-        self._out_buf.write("%s \n" % command)
+        self._out_buf.write("%s \n" % c_map[command])
 
     def write_label(self, label):
-        pass
+        self._out_buf.write("label %s\n" % label)
 
     def write_goto(self, label):
-        pass
+        self._out_buf.write("goto %s\n" % label)
 
     def write_if(self, label):
-        pass
+        self._out_buf.write("if-goto %s\n" % label)
 
     def write_call(self, name, n_args):
         self._out_buf.write("call %s %s \n" % (name, n_args))
@@ -42,3 +41,6 @@ class VMWriter(object):
 
     def close(self):
         self._out_buf.close()
+
+    def write_comment(self, comment):
+        self._out_buf.write("//%s \n" % comment)
