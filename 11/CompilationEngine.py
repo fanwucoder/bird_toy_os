@@ -8,6 +8,7 @@ from SymbolTable import SymbolTable
 from VMWriter import VMWriter
 
 SEG_CONSTANT = "constant"
+SEG_POINTER = "pointer"
 SEG_LOCAL = "local"
 SEG_STATIC = "static"
 SEG_THAT = "that"
@@ -144,7 +145,11 @@ class CompilationEngine(object):
             #  构造函数分配对象内存
             self.vm_writer.write_push(SEG_CONSTANT, field_cnt)
             self.vm_writer.write_call("Memory.alloc", "1")
-
+            self.vm_writer.write_pop(SEG_POINTER, "0")
+        elif method_type == KeywordType.METHOD:
+            # 成员方法，设置this=arg[0]
+            self.vm_writer.write_push(SEG_ARG, "0")
+            self.vm_writer.write_pop(SEG_POINTER, "0")
         self.compile_statements()
         self._pop_required(parent, TokenType.symbol, "}")
         self._remove_parent()
@@ -285,6 +290,7 @@ class CompilationEngine(object):
         self._remove_parent()
 
         self.vm_writer.write_comment("end while")
+
     def compile_return(self):
         parent = self._set_parent("returnStatement")
         self._pop_required(parent, TokenType.keyword, KeywordType.RETURN)
@@ -371,8 +377,6 @@ class CompilationEngine(object):
                     # 变量
                     seg, idx = self.get_var_seg_idx(val)
                     self.vm_writer.write_push(seg, idx)
-
-
             else:
                 if self.is_token(TokenType.integerConstant):
                     tk, val = self._required_type(TokenType.integerConstant)
@@ -384,6 +388,8 @@ class CompilationEngine(object):
                     self.vm_writer.write_push(SEG_CONSTANT, "0")
                 elif self.is_token(TokenType.keyword, KeywordType.NULL):
                     self.vm_writer.write_push(SEG_CONSTANT, "0")
+                elif self.is_token(TokenType.keyword, KeywordType.THIS):
+                    self.vm_writer.write_push(SEG_POINTER, "0")
                 self._advance()
         self._remove_parent()
 
@@ -547,5 +553,13 @@ class CompilationEngine(object):
 
 
 if __name__ == '__main__':
-    compiler = CompilationEngine("ConvertToBin\\Main.jack", "ConvertToBin\\Main.xml")
-    compiler.compile_class()
+    import os
+
+    dir = "Square"
+    for f in os.listdir(dir):
+        if not f.endswith(".jack"):
+            continue
+        print(f)
+        fn = os.path.join(dir, f)
+        compiler = CompilationEngine(fn, fn[:-5] + ".xml")
+        compiler.compile_class()
