@@ -255,23 +255,27 @@ class CompilationEngine(object):
         parent = self._set_parent("letStatement")
         self._pop_required(parent, TokenType.keyword, KeywordType.LET)
         tk, val = self._pop_required(parent, TokenType.identifier)
+        seg, idx = self.get_var_seg_idx(val)
         is_arr = False
         if self.is_token(TokenType.symbol, "["):
-            parent.append(self._build_element())
+            is_arr = True
             self._advance()
             self.compile_expression()
-            self.vm_writer.write_pop(SEG_POINTER, "1")
+            self.vm_writer.write_push(seg, idx)
+            self.vm_writer.write_arithmetic("+")
             self._pop_required(parent, TokenType.symbol, "]")
+
         # 有可能是数组
         # 替换正则
         self._pop_required(parent, TokenType.symbol, "=")
         self.compile_expression()
         if is_arr:
-            seg = SEG_THAT
-            idx = "0"
+            self.vm_writer.write_pop(SEG_TEMP, "0")
+            self.vm_writer.write_pop(SEG_POINTER, "1")
+            self.vm_writer.write_push(SEG_TEMP, "0")
+            self.vm_writer.write_pop(SEG_THAT, "0")
         else:
-            seg, idx = self.get_var_seg_idx(val)
-        self.vm_writer.write_pop(seg, idx)
+            self.vm_writer.write_pop(seg, idx)
         self._pop_required(parent, TokenType.symbol, ";")
         self._remove_parent()
 
@@ -362,11 +366,6 @@ class CompilationEngine(object):
                 self.compile_expression()
                 self._pop_required(parent, TokenType.symbol, ")")
 
-            elif self.is_token(TokenType.symbol, "["):
-                parent.append(self._build_element())
-                self._advance()
-                self.compile_expression()
-                parent.append(self.required(TokenType.symbol, "]"))
             elif self._is_unary_op():
                 token, op = self._token()
                 self._advance()
@@ -378,13 +377,24 @@ class CompilationEngine(object):
                 tk, val = self._pop_required(parent, TokenType.identifier)
                 if self.is_token(TokenType.symbol, "(") or self.is_token(TokenType.symbol, "."):
                     self.compile_call(tk, val)
+                elif self.is_token(TokenType.symbol, "["):
+                    self._advance()
+                    self.compile_expression()
+                    seg, idx = self.get_var_seg_idx(val)
+                    self.vm_writer.write_push(seg, idx)
+                    # 数组直接计算基址，通过that[0]访问
+                    # fixme a[0] 这种常数的访问
+                    self.vm_writer.write_arithmetic("+")
+                    self.vm_writer.write_pop(SEG_POINTER, "1")
+                    self.vm_writer.write_push(SEG_THAT, "0")
+                    self._pop_required(parent, TokenType.symbol, "]")
                 else:
                     # 变量
                     seg, idx = self.get_var_seg_idx(val)
                     self.vm_writer.write_push(seg, idx)
             else:
+                tk, val = self._token()
                 if self.is_token(TokenType.integerConstant):
-                    tk, val = self._required_type(TokenType.integerConstant)
                     self.vm_writer.write_push(SEG_CONSTANT, val)
                 elif self.is_token(TokenType.keyword, KeywordType.TRUE):
                     self.vm_writer.write_push(SEG_CONSTANT, "0")
@@ -395,6 +405,15 @@ class CompilationEngine(object):
                     self.vm_writer.write_push(SEG_CONSTANT, "0")
                 elif self.is_token(TokenType.keyword, KeywordType.THIS):
                     self.vm_writer.write_push(SEG_POINTER, "0")
+                elif self.is_token(TokenType.stringConstant):
+                    str_len = len(val)
+                    self.vm_writer.write_push(SEG_CONSTANT, str(str_len))
+                    self.vm_writer.write_call("String.new", "1")
+
+                    for idx, x in enumerate(val):
+                        self.vm_writer.write_push(SEG_CONSTANT, str(ord(x)))
+                        self.vm_writer.write_call("String.appendChar", '2')
+
                 self._advance()
         self._remove_parent()
 
@@ -560,7 +579,7 @@ class CompilationEngine(object):
 if __name__ == '__main__':
     import os
 
-    dir = "Square"
+    dir = "TestString"
     for f in os.listdir(dir):
         if not f.endswith(".jack"):
             continue

@@ -1,0 +1,9 @@
+class Main{
+    function void main(){
+        var String s;
+        let s="test string";
+        do Output.printString(s);
+        return ;
+
+    }
+}

@@ -1,0 +1,17 @@
+class Main{
+    function void main(){
+        var Array arr;
+        var int i;
+        var int b;
+        let arr=Array.new(10);
+        let i=2;
+        let b=1;
+        let arr[i]=3;
+        let arr[b]=arr[i];
+        do Output.printInt(arr[i]);
+        do Output.println();
+        do Output.printInt(arr[b]);
+        return;
+
+    }
+}
