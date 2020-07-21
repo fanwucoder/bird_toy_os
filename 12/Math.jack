@@ -8,9 +8,40 @@
  * Note: Jack compilers implement multiplication and division using OS method calls.
  */
 class Math {
-
+    static Array powers_of_two;
     /** Initializes the library. */
     function void init() {
+        let powers_of_two = Array.new(16);
+        let powers_of_two[0] = 1;
+        let powers_of_two[1] = 2;
+        let powers_of_two[2] = 4;
+        let powers_of_two[3] = 8;
+        let powers_of_two[4] = 16;
+        let powers_of_two[5] = 32;
+        let powers_of_two[6] = 64;
+        let powers_of_two[7] = 128;
+        let powers_of_two[8] = 256;
+        let powers_of_two[9] = 512;
+        let powers_of_two[10] = 1024;
+        let powers_of_two[11] = 2048;
+        let powers_of_two[12] = 4096;
+        let powers_of_two[13] = 8192;
+        let powers_of_two[14] = 16384;
+        let powers_of_two[15] = 16384+16384;
+        return;
+
+    }
+    function boolean bit(int x,int j){
+        var int mask;
+       var  boolean zero;
+        let mask=powers_of_two[j];
+        let x=x&mask;
+        if (x=0){
+            zero= false;
+        }else{
+            zero= true;
+        }
+        return zero;
     }
 
     /** Returns the absolute value of x. */
