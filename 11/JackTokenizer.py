@@ -182,7 +182,7 @@ class JackTokenizer(object):
             b = cmd.find("\"", a + 1)
             self._tokens = self._tokens + self._split_by_symbol(cmd[:a])
             self._tokens.append(cmd[a:b + 1])
-            cmd = cmd[b:]
+            cmd = cmd[b+1:]
         self._tokens = self._tokens + self._split_by_symbol(cmd)
         self._tokens = [x for x in self._tokens if x.strip()]
 

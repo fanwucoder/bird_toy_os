@@ -66,11 +66,12 @@ class PongGame {
             // waits for a key to be pressed.
             while ((key = 0) & (~exit)) {
                 let key = Keyboard.keyPressed();
+
                 do bat.move();
                 do moveBall();
+               // do Output.printString("run1");
                 do Sys.wait(50);
             }
-
             if (key = 130) { do bat.setDirection(1); }
 	        else {
 	            if (key = 132) { do bat.setDirection(2); }
@@ -84,6 +85,7 @@ class PongGame {
                 let key = Keyboard.keyPressed();
                 do bat.move();
                 do moveBall();
+                        //do Output.printString("run2");
                 do Sys.wait(50);
             }
         }
@@ -122,12 +124,14 @@ class PongGame {
                     else {
                         if (ballLeft > (batRight - 10)) { let bouncingDirection = 1; }
                     }
-
-                    let batWidth = batWidth - 2;
-                    do bat.setWidth(batWidth);      
+                    //let batWidth = batWidth - 2;
+                    //do Output.moveCursor(0,0);
+                    //do Output.printInt(batWidth);
+                    do bat.setWidth(batWidth);
                     let score = score + 1;
                     do Output.moveCursor(22,7);
                     do Output.printInt(score);
+
                 }
             }
             do ball.bounce(bouncingDirection);

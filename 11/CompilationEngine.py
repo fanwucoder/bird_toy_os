@@ -23,6 +23,7 @@ if sys.version_info.major == 3:
 
 
 class CompilationEngine(object):
+
     def __init__(self, inputfile, outputfile):
         self._inputfile = inputfile
         self._outputfile = outputfile
@@ -36,6 +37,11 @@ class CompilationEngine(object):
         self.vm_writer = None  # type:VMWriter
         self._init()
         self.symbol = SymbolTable()
+        self.vm_writer.set_engine(self)
+        self.method_type = None
+
+    def line_num(self):
+        return self._tokenizer.line
 
     def _init(self):
         self._inputbuf = self.create_buffer(self._inputfile)
@@ -116,6 +122,7 @@ class CompilationEngine(object):
         self.symbol.start_subroutine()
         parent = self._set_parent("subroutineDec")
         method_type = self._token()[1]
+        self.method_type = method_type
         self._advance()
         self.return_type = self._token()[1]
         self._advance()
@@ -472,7 +479,7 @@ class CompilationEngine(object):
             a, b = token_type, self._tokenizer.stringVal()
         else:
             a, b = None, None
-        # print(a, b, self._tokenizer.line)
+        print(a, b, self._tokenizer.line)
         return a, b
 
     def _advance(self):
@@ -568,6 +575,8 @@ class CompilationEngine(object):
         elif kind == "field":
             return SEG_THIS, idx
         elif kind == "arg":
+            if self.method_type == KeywordType.METHOD:
+                idx += 1
             return SEG_ARG, idx
 
     def _get_label(self):
@@ -579,7 +588,7 @@ class CompilationEngine(object):
 if __name__ == '__main__':
     import os
 
-    dir = "TestString"
+    dir = "Pong"
     for f in os.listdir(dir):
         if not f.endswith(".jack"):
             continue
@@ -587,3 +596,5 @@ if __name__ == '__main__':
         fn = os.path.join(dir, f)
         compiler = CompilationEngine(fn, fn[:-5] + ".xml")
         compiler.compile_class()
+    # compiler = CompilationEngine("Pong/Bat.jack", "Pong/Bat.xml")
+    # compiler.compile_class()

@@ -74,6 +74,8 @@ class Bat {
 
     /** Sets the bat's width. */
     method void setWidth(int Awidth) {
+       do Output.moveCursor(1,0);
+        do Output.printInt(Awidth);
         do hide();
         let width = Awidth;
         do show();
