@@ -255,17 +255,22 @@ class CompilationEngine(object):
         parent = self._set_parent("letStatement")
         self._pop_required(parent, TokenType.keyword, KeywordType.LET)
         tk, val = self._pop_required(parent, TokenType.identifier)
-
+        is_arr = False
         if self.is_token(TokenType.symbol, "["):
             parent.append(self._build_element())
             self._advance()
             self.compile_expression()
+            self.vm_writer.write_pop(SEG_POINTER, "1")
             self._pop_required(parent, TokenType.symbol, "]")
         # 有可能是数组
         # 替换正则
         self._pop_required(parent, TokenType.symbol, "=")
         self.compile_expression()
-        seg, idx = self.get_var_seg_idx(val)
+        if is_arr:
+            seg = SEG_THAT
+            idx = "0"
+        else:
+            seg, idx = self.get_var_seg_idx(val)
         self.vm_writer.write_pop(seg, idx)
         self._pop_required(parent, TokenType.symbol, ";")
         self._remove_parent()
