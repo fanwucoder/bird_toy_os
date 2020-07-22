@@ -1,0 +1,57 @@
+class Main{
+    field int  field1;
+    function void main(){
+        var boolean a,b;
+        var int i,sum;
+        var Main mainObj;
+        var Array arr;
+        // let a=true;
+        // let b=false;
+        // if (a){
+        //     do Output.printInt(1 );
+        // }else{
+        //     do Output.printInt(2);
+        // }
+        
+        // if (b){
+        //     do Output.printInt(3 );
+        // }else{
+        //     do Output.printInt(4);
+        // }
+        // let i=0;
+        // let sum=0;
+        // while(i<101){
+        //     let sum=sum+i;
+        //     let i=i+1;
+        // }
+        // do Output.printInt(sum);
+        // let sum=get_value()+1;
+        // do Output.println();
+        // do Output.printInt(sum);
+        // let mainObj=Main.new(1);
+        // do mainObj.printField();
+        // let sum=mainObj.getFieldAdd1();
+        // do Output.printInt(sum);
+        arr=Array.new(10);
+        let i=0;
+        while(i<10){
+            arr[i]=1;
+        }
+        return;
+    }
+    function int get_value(){
+        return 2;
+    }
+    constructor Main new(int a){
+        let field1=a;
+     
+        return this;
+    }
+    method int getFieldAdd1(){
+        return field1+1;
+    }
+    method void printField(){
+     do Output.printInt(field1);
+     return;
+    }
+}
