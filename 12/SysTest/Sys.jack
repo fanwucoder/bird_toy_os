@@ -10,43 +10,49 @@ class Sys {
 
     /** Performs all the initializations required by the OS. */
     function void init() {
-        Math.init();
-        Memory.init();
-        Array.init();
-        KeyBoard.init();
-        Output.init();
-        Screen.init();
-        Sys.wait(1);
-        Main.main();
+        do Memory.init();
+        do Math.init();
+        do Output.init();
+        do Screen.init();
+        do Keyboard.init();
+    
+        do Main.main();
+        do Sys.halt();
+        return;
     }
 
     /** Halts the program execution. */
     function void halt() {
-        var i=0;
+        var int i;
         while (true){
             let i=i+1;
         }
+         return;
     }
 
     /** Waits approximately duration milliseconds and returns.  */
     function void wait(int duration) {
-        var i=0;
-        var b=0;
+        var int i;
+        var int b;
+        do Output.printString("begin wait!");
         while(true){
             let i=i+1;
-            let b=i-100;
+            let b=i-10000;
             if (b=0){
-                do Output.pirntInt(i);
+                do Output.printInt(i);
+                do Output.printChar(32);
                 let i=0;
 
             }
         }
+        return;
     }
 
     /** Displays the given error code in the form "ERR<errorCode>",
      *  and halts the program's execution. */
     function void error(int errorCode) {
-        Output.printString("ERR");
-        Output.pirntInt(errorCode);
+       do  Output.printString("ERR");
+        do Output.printInt(errorCode);
+        return;
     }
 }
