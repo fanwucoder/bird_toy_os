@@ -17,7 +17,12 @@ class String {
     /** constructs a new empty string with a maximum length of maxLength
      *  and initial length of 0. */
     constructor String new(int maxLength) {
-        let _buf=Array.new(maxLength);
+        if (~(maxLength=0)){
+            let _buf=Array.new(maxLength);
+        }else{
+            let _buf=-1;
+        }
+  
         let str_len=0;
         let buf_len=maxLength;
         return this;
@@ -25,7 +30,13 @@ class String {
 
     /** Disposes this string. */
     method void dispose() {
-        _buf.dispose();
+        if (buf_len=0){
+            return;
+        }else{
+ do  _buf.dispose();
+        }
+      
+       return;
     }
 
     /** Returns the current length of this string. */
@@ -48,6 +59,7 @@ class String {
         }else{
             let _buf[j]=c;
         }
+        return;
     }
 
     /** Appends c to this string's end and returns this string. */
@@ -62,29 +74,74 @@ class String {
     /** Erases the last character from this string. */
     method void eraseLastChar() {
         let str_len=str_len-1;
+        return;
     }
 
     /** Returns the integer value of this string, 
      *  until a non-digit character is detected. */
     method int intValue() {
-        var j;
-        var sum;
-        var boolean continue;
+        var int j;
+        var int sum;
+        var boolean continue,neg;
         let continue=true;
         let j=0;
         let sum=0;
+        let neg=false;
         while ((j<str_len)&continue){
-            if((_buf[j]>47)&(_buf[j]<59)){
-                let sum=sum*10+(charAt(j)-48);
+            if (_buf[j]=45){
+                let neg=true;
             }else{
-                continue=false;
+                if((_buf[j]>47)&(_buf[j]<59)){
+                    let sum=(sum*10)+(charAt(j)-48);
+                }else{
+                    let continue=false;
+                }
             }
+            
+            let j=j+1;
+        }
+        if(neg){
+            let sum=-sum;
         }
         return sum;
     }
 
     /** Sets this string to hold a representation of the given value. */
     method void setInt(int val) {
+        var int a,b;
+        var int c;
+        var int i;
+        var boolean first;
+        let first=true;
+        let a=10000;
+        let i=0;
+        if (val<0){
+            let val=-val;
+             if (~(i<str_len)){
+                     do appendChar(45);
+                }else{
+                    do setCharAt(i,45);
+                }
+            let i=i+1;
+          
+        }
+        while (val>0){
+            let b=val/a;
+            if((~first)|(~(b=0))){
+                let c=48+b;
+                if (~(i<str_len)){
+                    do appendChar(c);
+                }else{
+                    do setCharAt(i,c);
+                }
+                let i=i+1;
+                let first=false;
+                let val=val-(a*b);
+            }
+            let a=a/10;
+        }
+        let str_len=i;
+        return;
     }
 
     /** Returns the new line character. */
