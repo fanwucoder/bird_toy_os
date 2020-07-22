@@ -10,9 +10,12 @@
  * the screen is indexed (0,0).
  */
 class Screen {
-
+    static Array screen;
+    static boolean cur_color;
     /** Initializes the Screen. */
     function void init() {
+         let screen=16384;
+         let cur_color=true;
     }
 
     /** Erases the entire screen. */
@@ -22,10 +25,31 @@ class Screen {
     /** Sets the current color, to be used for all subsequent drawXXX commands.
      *  Black is represented by true, white by false. */
     function void setColor(boolean b) {
-    }
 
+    }
+    function int fill_bit(int x){
+        let x=x-(x*(x/16));
+        
+    }
     /** Draws the (x,y) pixel, using the current color. */
     function void drawPixel(int x, int y) {
+        var int pos;
+        var int bit;
+        if (x<0){
+            let x=0;
+        }
+        if (x>511){
+            let x=511;
+        }
+        if (y<0){
+            let y=0;
+        }
+        if(y>255){
+            let y=255;
+        }
+        let pos=screen+(y*32)+(x/16);
+    return;
+        
     }
 
     /** Draws a line from pixel (x1,y1) to pixel (x2,y2), using the current color. */
