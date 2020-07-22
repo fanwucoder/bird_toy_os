@@ -12,6 +12,9 @@ class Main {
         var String s;
     
     	let s = String.new(1);
+        do Output.moveCursor(5,0);
+        do Output.init();
+        do Output.printChar(65);
     	do s.appendChar(String.doubleQuote());
     
         do Output.moveCursor(0, 63);

@@ -18,9 +18,33 @@ class Output {
 
     // Character map for displaying characters
     static Array charMaps; 
-
+    static Array screen;
+    static int row,col,row_cnt,col_cnt;
+    static Array maskArray;
     /** Initializes the screen, and locates the cursor at the screen's top-left. */
     function void init() {
+        var int i,j;
+        let i=0;
+        let j=0;
+        let row=0;
+        let col=0;
+        let screen=16384;
+        let row_cnt=23;
+        let col_cnt=64;
+        let maskArray=Array.new(2);
+        let maskArray[0]=255;
+        let maskArray[1]=-1&255;
+        do Output.initMap();
+        // Output.moveCursor(0,0);
+        // while (i<row_cnt){
+        //     while(j<col_cnt){
+        //         Output.moveCursor(i,j);
+        //         Output.printChar(32);
+        //         let j=j+1;
+        //     }
+        //     let i=i+1;
+        // }
+        return;
     }
 
     // Initializes the character map array
@@ -71,7 +95,7 @@ class Output {
         do Output.create(64,30,51,51,59,59,59,27,3,30,0,0);  // @
         do Output.create(63,30,51,51,24,12,12,0,12,12,0,0);  // ?
 
-        do Output.create(65,12,59,51,51,63,51,51,51,51,0,0);          // A ** TO BE FILLED **
+        do Output.create(65,48,120,204,204,252,204,204,204,204,0,0);          // A ** TO BE FILLED **
         do Output.create(66,31,51,51,51,31,51,51,51,31,0,0); // B
         do Output.create(67,28,54,35,3,3,3,35,54,28,0,0);    // C
         do Output.create(68,15,27,51,51,51,51,51,27,15,0,0); // D
@@ -176,28 +200,108 @@ class Output {
     /** Moves the cursor to the j-th column of the i-th row,
      *  and erases the character displayed there. */
     function void moveCursor(int i, int j) {
+        let row=i;
+        let col=j;
+        return;
     }
+    function void showChar(char c){
+        var Array map;
+        var int i;
+        var int pos;
+        var int mask;
+        var int bitmap;
+        let mask=0;
+        let i=0;
+        let pos=row*col_cnt/2*11+(col/2);
+        let mask=col&1;
+        let map=Output.getMap(c);
+  
 
+        
+        while (i<11){
+            let bitmap=map[i];
+            if (mask=1){
+                let bitmap=bitmap*256;
+            }
+
+            let screen[pos]=screen[pos]&maskArray[mask]|bitmap;
+            let i=i+1;
+            let pos=pos+(col_cnt/2);
+
+        }
+     
+        return;
+    }
     /** Displays the given character at the cursor location,
      *  and advances the cursor one column forward. */
     function void printChar(char c) {
+
+        var boolean newline;
+        var boolean back;
+        let newline=false;
+        let back=false;
+        do Output.showChar(32);
+        do Output.showChar(c);
+        let col=col+1;
+        if(~(col<col_cnt)){
+            let col=0;
+            let row=row+1;
+        }
+        if (~(row<row_cnt)){
+           let row=0;
+        }
+
+        return;
     }
 
     /** displays the given string starting at the cursor location,
      *  and advances the cursor appropriately. */
     function void printString(String s) {
+        var int cnt,j;
+        let cnt=s.length();
+        let j=0;
+        while(j<cnt){
+            do Output.printChar(s.charAt(j));
+            let j=j+1;
+        }
+        return;
     }
 
     /** Displays the given integer starting at the cursor location,
      *  and advances the cursor appropriately. */
     function void printInt(int i) {
+        var String s;
+        let s=String.new(10);
+        do s.setInt(i);
+        do Output.printString(s);
+        do s.dispose();
+        return;
     }
 
     /** Advances the cursor to the beginning of the next line. */
     function void println() {
+        do Output.showChar(32);
+             //换行
+        let col=0;
+        let row=row+1;
+        if (~(row<row_cnt)){
+           let             row=0;
+        }
+        do Output.moveCursor(row,col);
+        return;
     }
 
     /** Moves the cursor one column back. */
     function void backSpace() {
+        if (col=0){
+        let row=row-1;
+        if (row<0){
+            let row=0;
+        }
+        }else{
+            let col=col-1;
+        }
+        do Output.moveCursor(row,col);
+        return;
     }
 }
